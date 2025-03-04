@@ -39,6 +39,16 @@ This VBA project automates the management and archiving of tickets in Microsoft 
 1. Copy all the VBA code into an Outlook VBA module.
 2. Enable `Microsoft VBScript Regular Expressions 5.5` in **VBA References**.
 3. Adjust the constants (`FOLDER_ARCHIV`, `FOLDER_TICKETS`, `ALLOWED_SENDER`, etc.) as needed for your environment.
+4. (Optional) Add a button to the Outlook Ribbon to easily run the macros:
+- Open Outlook and go to File > Options > Customize Ribbon.
+- Under Choose commands from (or a similar text), select Macros.
+- Locate the desired macro name (e.g., "ProjectName.RunEmailRule" or "ProjectName.RunArchiveRule").
+- Create a New Group or select an existing custom group on the Ribbon.
+- Click Add to add the macro to the selected group.
+- (Optional) Click Rename to change the button's label or icon.
+- Click OK to confirm.
+
+You can repeat these steps for each macro if you want separate buttons for "RunEmailRule" and "RunArchiveRule."
 
 ## Usage
 - **RunEmailRule**: Called manually or via a rule to automatically sort newly received emails.

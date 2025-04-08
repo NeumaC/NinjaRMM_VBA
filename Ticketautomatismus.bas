@@ -3,7 +3,7 @@ Option Explicit
 
 ' ************************************************************************
 '   ACHTUNG:
-'   Um dieses Makro nutzen zu können, muss in den VBA-Extras/Verweise
+'   Um dieses Makro nutzen zu kÃ¶nnen, muss in den VBA-Extras/Verweise
 '   der Verweis auf "Microsoft VBScript Regular Expressions 5.5" aktiviert sein.
 ' ************************************************************************
 
@@ -17,7 +17,7 @@ Public Const ALLOWED_SENDER As String = "it-support@gfoellner.at"
 
 Public Const REGEX_SUBJECT_PATTERN As String = "^\[gfoellner-at\]\s*\(#(\d+)\)(.*)"
 Public Const REGEX_TICKETNUMBER_ONLY As String = "^\[gfoellner-at\]\s*\(#(\d+)\)"
-Public Const REGEX_TICKET_REPLACE As String = "TICKET \(Gf\öllner - ([A-Z]+)\)( / )"
+Public Const REGEX_TICKET_REPLACE As String = "TICKET \(Gf\Ã¶llner - ([A-Z]+)\)( / )"
 Public Const REGEX_STATUS_CLOSED As String = "Status:\s?.*?\s?Geschlossen"
 
 ' ------------------------------------------------------------------------
@@ -64,12 +64,12 @@ End Function
 ' Neu: Hilfsfunktion zum rekursiven Durchsuchen des Archivordners
 Private Function FindTicketFolderInArchiveRecursively(ByVal parentFolder As Outlook.Folder, _
                                                       ByVal ticketNumber As String) As Outlook.Folder
-    ' Durchsucht parentFolder und sämtliche Unterordner rekursiv nach einem Ordner,
+    ' Durchsucht parentFolder und sÃ¤mtliche Unterordner rekursiv nach einem Ordner,
     ' dessen Name mit ticketNumber beginnt.
 
     Dim child As Outlook.Folder
     For Each child In parentFolder.Folders
-        ' Prüfung, ob Ordnername das gesuchte TicketNumber-Präfix hat
+        ' PrÃ¼fung, ob Ordnername das gesuchte TicketNumber-PrÃ¤fix hat
         If Left(child.Name, Len(ticketNumber)) = ticketNumber Then
             Set FindTicketFolderInArchiveRecursively = child
             Exit Function
@@ -108,7 +108,7 @@ Public Sub ProcessEmail(mailItem As Outlook.mailItem, tasksFolder As Outlook.Fol
     regex.IgnoreCase = True
     regex.Global = False
 
-    ' Regex zum Ersetzen im Rest-Text (TICKET (Gf\öllner - XX) / ...)
+    ' Regex zum Ersetzen im Rest-Text (TICKET (Gf\Ã¶llner - XX) / ...)
     Set ticketRegex = New RegExp
     ticketRegex.Pattern = REGEX_TICKET_REPLACE
     ticketRegex.IgnoreCase = True
@@ -128,7 +128,7 @@ Public Sub ProcessEmail(mailItem As Outlook.mailItem, tasksFolder As Outlook.Fol
             ' Restlicher Betreff
             remainingText = matchObj.SubMatches(1)
 
-            ' Ersetze optional "TICKET (Gf\öllner - XX) /" durch "XX"
+            ' Ersetze optional "TICKET (Gf\Ã¶llner - XX) /" durch "XX"
             ' wenn es vorhanden ist.
             If ticketRegex.test(remainingText) Then
                 Set ticketMatch = ticketRegex.Execute(remainingText)
@@ -141,7 +141,7 @@ Public Sub ProcessEmail(mailItem As Outlook.mailItem, tasksFolder As Outlook.Fol
             ' Ordnername zusammensetzen
             folderName = ticketNumber & " (" & Trim(remainingText) & ")"
 
-            ' Prüfen, ob ein Ordner mit derselben Ticketnummer bereits im tasksFolder existiert
+            ' PrÃ¼fen, ob ein Ordner mit derselben Ticketnummer bereits im tasksFolder existiert
             folderExists = False
             For Each existingFolder In tasksFolder.Folders
                 If Left(existingFolder.Name, Len(ticketNumber)) = ticketNumber Then
@@ -151,7 +151,7 @@ Public Sub ProcessEmail(mailItem As Outlook.mailItem, tasksFolder As Outlook.Fol
                 End If
             Next
 
-            ' Falls kein Ordner existiert, prüfe, ob er im Archiv (rekursiv) zu finden ist
+            ' Falls kein Ordner existiert, prÃ¼fe, ob er im Archiv (rekursiv) zu finden ist
             If Not folderExists Then
                 On Error Resume Next
                 Set archiveFolder = tasksFolder.Folders(FOLDER_ARCHIV)
@@ -185,13 +185,13 @@ End Sub
 ' ------------------------------------------------------------------------
 
 Private Sub ArchiveTasksFolder(ByVal tasksFolder As Outlook.Folder)
-    ' Diese Prozedur durchsucht alle Ticket-Unterordner im übergebenen tasksFolder
-    ' nach E-Mails, in deren Body die Statusänderung "Status: * ? Geschlossen" vorkommt.
+    ' Diese Prozedur durchsucht alle Ticket-Unterordner im Ã¼bergebenen tasksFolder
+    ' nach E-Mails, in deren Body die StatusÃ¤nderung "Status: * ? Geschlossen" vorkommt.
     ' Wird eine solche E-Mail gefunden, wird der komplette Ticketordner
     ' in den Archivordner verschoben.
     '
     ' Anstatt das aktuelle Datum zu nehmen, verwenden wir das Empfangsdatum
-    ' (ReceivedTime) der E-Mail mit dem abschließenden Status.
+    ' (ReceivedTime) der E-Mail mit dem abschlieÃŸenden Status.
     '
     ' Archivstruktur:
     '   Archiv -> <Jahr> -> <Monat> -> [Ticket-Folder]
@@ -208,11 +208,11 @@ Private Sub ArchiveTasksFolder(ByVal tasksFolder As Outlook.Folder)
     Dim i As Long
     Dim ticketFolder As Outlook.Folder
 
-    ' 2) Durch alle Unterordner in tasksFolder laufen (Ticketordner) - rückwärts
+    ' 2) Durch alle Unterordner in tasksFolder laufen (Ticketordner) - rÃ¼ckwÃ¤rts
     For i = tasksFolder.Folders.Count To 1 Step -1
         Set ticketFolder = tasksFolder.Folders.Item(i)
 
-        ' "Archiv"-Ordner selbst überspringen
+        ' "Archiv"-Ordner selbst Ã¼berspringen
         If ticketFolder.Name <> archivRoot.Name Then
             Dim j As Long
             Dim mailItem As Outlook.mailItem
@@ -224,7 +224,7 @@ Private Sub ArchiveTasksFolder(ByVal tasksFolder As Outlook.Folder)
                 If ticketFolder.items(j).Class = olMail Then
                     Set mailItem = ticketFolder.items(j)
 
-                    ' Prüfen, ob im Body "Status: ... ? Geschlossen" gefunden wird
+                    ' PrÃ¼fen, ob im Body "Status: ... ? Geschlossen" gefunden wird
                     If IsStatusClosed(mailItem.Body) Then
                         foundStatusChange = True
 
@@ -232,7 +232,7 @@ Private Sub ArchiveTasksFolder(ByVal tasksFolder As Outlook.Folder)
                         Dim closedMailDate As Date
                         closedMailDate = mailItem.ReceivedTime  ' Empfangenes Datum
 
-                        ' Falls gewünscht, die Ticketnummer zur Doku holen
+                        ' Falls gewÃ¼nscht, die Ticketnummer zur Doku holen
                         Dim extractedTicketNumber As String
                         extractedTicketNumber = ExtractTicketNumber(mailItem.Subject)
                         Debug.Print "Gefundene Ticketnummer: " & extractedTicketNumber & _
@@ -292,7 +292,8 @@ Public Sub RunEmailRule()
     Dim mailItem As Outlook.mailItem
     Dim ns As Outlook.NameSpace
     Dim i As Long
-
+    Dim item As Object
+    
     ' Posteingang holen
     Set ns = Application.GetNamespace("MAPI")
     Set inbox = ns.GetDefaultFolder(olFolderInbox)
@@ -306,18 +307,16 @@ Public Sub RunEmailRule()
         Exit Sub
     End If
 
-    ' Alle Elemente im Posteingang durchlaufen (rückwärts)
+    ' Hole alle Elemente im Posteingang
     Set items = inbox.items
+    
+    ' Durchlaufe die E-Mails im Posteingang rÃ¼ckwÃ¤rts
     For i = items.Count To 1 Step -1
-        On Error Resume Next
-        Set mailItem = items(i)
-        On Error GoTo 0
-
-        If Not mailItem Is Nothing Then
-            If TypeOf mailItem Is Outlook.mailItem Then
-                ' E-Mail mit ProcessEmail verarbeiten
-                ProcessEmail mailItem, tasksFolder
-            End If
+        Set item = items(i)
+        If TypeOf item Is Outlook.mailItem Then
+            Set mailItem = item
+            ' E-Mail mit ProcessEmail verarbeiten
+            ProcessEmail mailItem, tasksFolder
         End If
     Next i
 End Sub
@@ -344,7 +343,7 @@ Public Sub RunArchiveRule()
         Exit Sub
     End If
 
-    ' Archivierung ausführen
+    ' Archivierung ausfÃ¼hren
     ArchiveTasksFolder tasksFolder
 
     MsgBox "Archivierung abgeschlossen.", vbInformation

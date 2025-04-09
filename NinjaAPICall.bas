@@ -94,8 +94,8 @@ End Property
 ' @type {WebClient}
 ' @param {WebClient} Client - The WebClient instance to set.
 ''
-Private Property Set NinjaClient(Client As WebClient)
-    Set pNinjaClient = Client
+Private Property Set NinjaClient(client As WebClient)
+    Set pNinjaClient = client
 End Property
 
 ''
@@ -523,3 +523,127 @@ ApiCall_Cleanup:
     End If
 End Sub
 
+' ------------------------------------------------------------------------
+'  API-basierte Statusabfrage
+' ------------------------------------------------------------------------
+
+Public Function IsTicketClosedByApi(ByVal ticketId As Long) As Boolean
+    On Error GoTo ErrHandler
+    
+    ' Beispielhaft: Wir verwenden den bereits vorhandenen WebClient aus NinjaAPICall,
+    '               der z.B. als "NinjaClient" bereitsteht.
+    '               Passen Sie das ggf. an Ihre Struktur an!
+
+    Dim client As WebClient
+    Set client = NinjaClient ' aus NinjaAPICall.bas oder ähnlich
+
+    ' Neues Request-Objekt erstellen
+    Dim req As New WebRequest
+    ' Ressource zusammensetzen (Beispiel-Endpunkt):
+    req.Resource = "ticketing/ticket/" & CStr(ticketId)
+    ' GET-Methode
+    req.Method = WebMethod.HttpGet
+    req.ResponseFormat = WebFormat.Json  ' Wir erwarten JSON-Antwort
+    
+    Dim resp As WebResponse
+    Set resp = client.Execute(req)
+    
+    If resp.StatusCode = 200 Then
+        ' JSON-Antwort parsen, resp.Data ist i.d.R. ein Dictionary
+        ' Wir erwarten:
+        '  {
+        '    "id":3621,
+        '    "status": {
+        '       "name":"CLOSED",
+        '       "statusId":6000
+        '    },
+        '    ...
+        '  }
+
+        ' Aus resp.Data("status") das Sub-Dictionary holen
+        Dim statusDict As Dictionary
+        Set statusDict = resp.Data("status")
+        
+        ' statusId prüfen
+        Dim sid As Long
+        sid = CLng(statusDict("statusId"))
+        
+        If sid = 6000 Then
+            IsTicketClosedByApi = True
+        Else
+            IsTicketClosedByApi = False
+        End If
+    Else
+        ' Wenn z.B. Fehler 404 oder anderes - hier je nach Bedarf behandeln
+        Debug.Print "API-Aufruf war nicht erfolgreich, Status: " & resp.StatusCode
+        IsTicketClosedByApi = False
+    End If
+    
+    Exit Function
+    
+ErrHandler:
+    Debug.Print "Fehler in IsTicketClosedByApi:", Err.Description
+    IsTicketClosedByApi = False
+End Function
+
+' Ermittelt aus der Log-Historie den Zeitstempel, wann das Ticket durch Automation ID=1000 geschlossen wurde
+' Liefert 0, falls kein Eintrag gefunden.
+Public Function GetTicketClosedDateByApi(ticketId As Long) As Date
+    On Error GoTo ErrHandler
+
+    Dim client As WebClient
+    Set client = NinjaClient ' ODER anpassen, wo Ihr WebClient herkommt
+
+    Dim req As New WebRequest
+    req.Resource = "ticketing/ticket/" & CStr(ticketId) & "/log-entry?type=SAVE"
+    req.Method = WebMethod.HttpGet
+    req.ResponseFormat = WebFormat.Json
+
+    Dim resp As WebResponse
+    Set resp = client.Execute(req)
+
+    If resp.StatusCode = 200 Then
+        ' Wir erwarten ein Array von Log-Einträgen
+        Dim arrLogs As Collection
+        Set arrLogs = resp.Data ' i.d.R. ein Collection-Objekt
+
+        Dim i As Long
+        For i = 1 To arrLogs.Count
+            Dim logItem As Dictionary
+            Set logItem = arrLogs.item(i)
+
+            ' Prüfen, ob automation vorhanden
+            If logItem.Exists("automation") Then
+                Dim autom As Dictionary
+                Set autom = logItem("automation")
+
+                ' Falls automation.id = 1000 => das ist unser finaler close-Eintrag
+                If autom.Exists("id") Then
+                    If CLng(autom("id")) = 1000 Then
+                        ' Dann Zeitstempel aus createTime übernehmen
+                        Dim dblTime As Double
+                        dblTime = CDbl(logItem("createTime")) ' Unix-Epoche in sek. oder ms?
+
+                        ' Gemäß Beispiel: 1744206453.867411000 => sek seit 1.1.1970
+                        ' -> In VBA-Datum umrechnen:
+                        '   1 Tag = 86400 sek
+                        Dim epoch As Date
+                        epoch = #1/1/1970#
+
+                        GetTicketClosedDateByApi = epoch + (dblTime / 86400#)
+                        Exit Function
+                    End If
+                End If
+            End If
+        Next i
+    End If
+
+    ' Falls nicht gefunden oder kein Erfolg:
+    GetTicketClosedDateByApi = 0
+
+    Exit Function
+
+ErrHandler:
+    Debug.Print "Fehler in GetTicketClosedDateByApi: ", Err.Number, Err.Description
+    GetTicketClosedDateByApi = 0
+End Function

@@ -3,7 +3,7 @@ Option Explicit
 
 ' ************************************************************************
 '   ACHTUNG:
-'   Um dieses Makro nutzen zu k√∂nnen, muss in den VBA-Extras/Verweise
+'   Um dieses Makro nutzen zu k?nnen, muss in den VBA-Extras/Verweise
 '   der Verweis auf "Microsoft VBScript Regular Expressions 5.5" aktiviert sein.
 ' ************************************************************************
 
@@ -17,7 +17,7 @@ Public Const ALLOWED_SENDER As String = "it-support@gfoellner.at"
 
 Public Const REGEX_SUBJECT_PATTERN As String = "^\[gfoellner-at\]\s*\(#(\d+)\)(.*)"
 Public Const REGEX_TICKETNUMBER_ONLY As String = "^\[gfoellner-at\]\s*\(#(\d+)\)"
-Public Const REGEX_TICKET_REPLACE As String = "TICKET \(Gf\√∂llner - ([A-Z]+)\)( / )"
+Public Const REGEX_TICKET_REPLACE As String = "TICKET \(Gfˆllner - ([A-Z]+)\)( / )"
 Public Const REGEX_STATUS_CLOSED As String = "Status:\s?.*?\s?Geschlossen"
 
 ' ------------------------------------------------------------------------
@@ -64,13 +64,13 @@ End Function
 ' Neu: Hilfsfunktion zum rekursiven Durchsuchen des Archivordners
 Private Function FindTicketFolderInArchiveRecursively(ByVal parentFolder As Outlook.Folder, _
                                                       ByVal ticketNumber As String) As Outlook.Folder
-    ' Durchsucht parentFolder und s√§mtliche Unterordner rekursiv nach einem Ordner,
+    ' Durchsucht parentFolder und s?mtliche Unterordner rekursiv nach einem Ordner,
     ' dessen Name mit ticketNumber beginnt.
 
     Dim child As Outlook.Folder
     For Each child In parentFolder.Folders
-        ' Pr√ºfung, ob Ordnername das gesuchte TicketNumber-Pr√§fix hat
-        If Left(child.Name, Len(ticketNumber)) = ticketNumber Then
+        ' Pr?fung, ob Ordnername das gesuchte TicketNumber-Pr?fix hat
+        If Left(child.name, Len(ticketNumber)) = ticketNumber Then
             Set FindTicketFolderInArchiveRecursively = child
             Exit Function
         Else
@@ -99,7 +99,7 @@ Public Sub ProcessEmail(mailItem As Outlook.mailItem, tasksFolder As Outlook.Fol
     Dim remainingText As String
     Dim newFolder As Outlook.Folder
     Dim existingFolder As Outlook.Folder
-    Dim folderExists As Boolean
+    Dim FolderExists As Boolean
     Dim archiveFolder As Outlook.Folder
 
     ' Initialisiere das RegExp-Objekt zur Erkennung des Betreffs
@@ -108,7 +108,7 @@ Public Sub ProcessEmail(mailItem As Outlook.mailItem, tasksFolder As Outlook.Fol
     regex.IgnoreCase = True
     regex.Global = False
 
-    ' Regex zum Ersetzen im Rest-Text (TICKET (Gf\√∂llner - XX) / ...)
+    ' Regex zum Ersetzen im Rest-Text (TICKET (Gf\?llner - XX) / ...)
     Set ticketRegex = New RegExp
     ticketRegex.Pattern = REGEX_TICKET_REPLACE
     ticketRegex.IgnoreCase = True
@@ -128,7 +128,7 @@ Public Sub ProcessEmail(mailItem As Outlook.mailItem, tasksFolder As Outlook.Fol
             ' Restlicher Betreff
             remainingText = matchObj.SubMatches(1)
 
-            ' Ersetze optional "TICKET (Gf\√∂llner - XX) /" durch "XX"
+            ' Ersetze optional "TICKET (Gf\?llner - XX) /" durch "XX"
             ' wenn es vorhanden ist.
             If ticketRegex.test(remainingText) Then
                 Set ticketMatch = ticketRegex.Execute(remainingText)
@@ -141,18 +141,18 @@ Public Sub ProcessEmail(mailItem As Outlook.mailItem, tasksFolder As Outlook.Fol
             ' Ordnername zusammensetzen
             folderName = ticketNumber & " (" & Trim(remainingText) & ")"
 
-            ' Pr√ºfen, ob ein Ordner mit derselben Ticketnummer bereits im tasksFolder existiert
-            folderExists = False
+            ' Pr¸fen, ob ein Ordner mit derselben Ticketnummer bereits im tasksFolder existiert
+            FolderExists = False
             For Each existingFolder In tasksFolder.Folders
-                If Left(existingFolder.Name, Len(ticketNumber)) = ticketNumber Then
+                If Left(existingFolder.name, Len(ticketNumber)) = ticketNumber Then
                     Set newFolder = existingFolder
-                    folderExists = True
+                    FolderExists = True
                     Exit For
                 End If
             Next
 
-            ' Falls kein Ordner existiert, pr√ºfe, ob er im Archiv (rekursiv) zu finden ist
-            If Not folderExists Then
+            ' Falls kein Ordner existiert, pr?fe, ob er im Archiv (rekursiv) zu finden ist
+            If Not FolderExists Then
                 On Error Resume Next
                 Set archiveFolder = tasksFolder.Folders(FOLDER_ARCHIV)
                 On Error GoTo 0
@@ -162,13 +162,13 @@ Public Sub ProcessEmail(mailItem As Outlook.mailItem, tasksFolder As Outlook.Fol
                     Set newFolder = FindTicketFolderInArchiveRecursively(archiveFolder, ticketNumber)
                     If Not newFolder Is Nothing Then
                         newFolder.MoveTo tasksFolder
-                        folderExists = True
+                        FolderExists = True
                     End If
                 End If
             End If
 
             ' Wenn immer noch kein Ordner vorhanden, neu erstellen
-            If Not folderExists Then
+            If Not FolderExists Then
                 Set newFolder = GetOrCreateFolder(tasksFolder, folderName)
             End If
 
@@ -184,87 +184,163 @@ End Sub
 '   Archivierung geschlossener Tickets
 ' ------------------------------------------------------------------------
 
+'Private Sub ArchiveTasksFolder(ByVal tasksFolder As Outlook.Folder)
+'    ' Diese Prozedur durchsucht alle Ticket-Unterordner im ¸bergebenen tasksFolder
+'    ' nach E-Mails, in deren Body die Status‰nderung "Status: * ? Geschlossen" vorkommt.
+'    ' Wird eine solche E-Mail gefunden, wird der komplette Ticketordner
+'    ' in den Archivordner verschoben.
+'    '
+'    ' Anstatt das aktuelle Datum zu nehmen, verwenden wir das Empfangsdatum
+'    ' (ReceivedTime) der E-Mail mit dem abschlieﬂenden Status.
+'    '
+'    ' Archivstruktur:
+'    '   Archiv -> <Jahr> -> <Monat> -> [Ticket-Folder]
+'
+'    Dim ns As Outlook.NameSpace
+'    Dim archivRoot As Outlook.Folder
+'
+'    Set ns = Application.GetNamespace("MAPI")
+'
+'    ' 1) Archiv-Ordner innerhalb des Tasks-Ordners suchen oder erstellen
+'    On Error Resume Next
+'    Set archivRoot = GetOrCreateFolder(tasksFolder, FOLDER_ARCHIV)
+'
+'    Dim i As Long
+'    Dim ticketFolder As Outlook.Folder
+'
+'    ' 2) Durch alle Unterordner in tasksFolder laufen (Ticketordner) - r?ckw?rts
+'    For i = tasksFolder.Folders.Count To 1 Step -1
+'        Set ticketFolder = tasksFolder.Folders.item(i)
+'
+'        ' "Archiv"-Ordner selbst ?berspringen
+'        If ticketFolder.name <> archivRoot.name Then
+'            Dim j As Long
+'            Dim mailItem As Outlook.mailItem
+'            Dim foundStatusChange As Boolean
+'            foundStatusChange = False
+'
+'            ' Durchsuche alle Items im Ticketordner
+'            For j = ticketFolder.items.Count To 1 Step -1
+'                If ticketFolder.items(j).Class = olMail Then
+'                    Set mailItem = ticketFolder.items(j)
+'
+'                    ' Pr?fen, ob im Body "Status: ... ? Geschlossen" gefunden wird
+'                    If IsStatusClosed(mailItem.Body) Then
+'                        foundStatusChange = True
+'
+'                        ' Wir holen uns das Empfangsdatum der "geschlossenen" E-Mail
+'                        Dim closedMailDate As Date
+'                        closedMailDate = mailItem.ReceivedTime  ' Empfangenes Datum
+'
+'                        ' Falls gew?nscht, die Ticketnummer zur Doku holen
+'                        Dim extractedTicketNumber As String
+'                        extractedTicketNumber = ExtractTicketNumber(mailItem.Subject)
+'                        Debug.Print "Gefundene Ticketnummer: " & extractedTicketNumber & _
+'                                    "; Datum: " & closedMailDate
+'
+'                        ' 3) Zielordner anlegen (Archiv -> Jahr -> Monat), basierend auf closedMailDate
+'                        Dim yearFolder As Outlook.Folder
+'                        Dim monthFolder As Outlook.Folder
+'                        Dim yearString As String
+'                        Dim monthString As String
+'
+'                        yearString = Format(closedMailDate, "yyyy")
+'                        monthString = Format(closedMailDate, "mm - mmmm")  ' "02 - Februar"
+'
+'                        Set yearFolder = GetOrCreateFolder(archivRoot, yearString)
+'                        Set monthFolder = GetOrCreateFolder(yearFolder, monthString)
+'
+'                        ' 4) Verschieben des Ticketordners in den erstellten Archivpfad
+'                        ticketFolder.MoveTo monthFolder
+'
+'                        Exit For  ' Schleife abbrechen
+'                    End If
+'                End If
+'            Next j
+'
+'            If foundStatusChange Then
+'                GoTo NextFolder
+'            End If
+'        End If
+'NextFolder:
+'    Next i
+'End Sub
+
+
 Private Sub ArchiveTasksFolder(ByVal tasksFolder As Outlook.Folder)
-    ' Diese Prozedur durchsucht alle Ticket-Unterordner im √ºbergebenen tasksFolder
-    ' nach E-Mails, in deren Body die Status√§nderung "Status: * ? Geschlossen" vorkommt.
-    ' Wird eine solche E-Mail gefunden, wird der komplette Ticketordner
-    ' in den Archivordner verschoben.
-    '
-    ' Anstatt das aktuelle Datum zu nehmen, verwenden wir das Empfangsdatum
-    ' (ReceivedTime) der E-Mail mit dem abschlie√üenden Status.
-    '
-    ' Archivstruktur:
-    '   Archiv -> <Jahr> -> <Monat> -> [Ticket-Folder]
-
-    Dim ns As Outlook.NameSpace
-    Dim archivRoot As Outlook.Folder
-
-    Set ns = Application.GetNamespace("MAPI")
-
-    ' 1) Archiv-Ordner innerhalb des Tasks-Ordners suchen oder erstellen
-    On Error Resume Next
-    Set archivRoot = GetOrCreateFolder(tasksFolder, FOLDER_ARCHIV)
-
     Dim i As Long
     Dim ticketFolder As Outlook.Folder
-
-    ' 2) Durch alle Unterordner in tasksFolder laufen (Ticketordner) - r√ºckw√§rts
+    
+    ' Gehen Sie durch alle (Ticket-)Unterordner in tasksFolder
     For i = tasksFolder.Folders.Count To 1 Step -1
-        Set ticketFolder = tasksFolder.Folders.Item(i)
-
-        ' "Archiv"-Ordner selbst √ºberspringen
-        If ticketFolder.Name <> archivRoot.Name Then
-            Dim j As Long
-            Dim mailItem As Outlook.mailItem
-            Dim foundStatusChange As Boolean
-            foundStatusChange = False
-
-            ' Durchsuche alle Items im Ticketordner
-            For j = ticketFolder.items.Count To 1 Step -1
-                If ticketFolder.items(j).Class = olMail Then
-                    Set mailItem = ticketFolder.items(j)
-
-                    ' Pr√ºfen, ob im Body "Status: ... ? Geschlossen" gefunden wird
-                    If IsStatusClosed(mailItem.Body) Then
-                        foundStatusChange = True
-
-                        ' Wir holen uns das Empfangsdatum der "geschlossenen" E-Mail
-                        Dim closedMailDate As Date
-                        closedMailDate = mailItem.ReceivedTime  ' Empfangenes Datum
-
-                        ' Falls gew√ºnscht, die Ticketnummer zur Doku holen
-                        Dim extractedTicketNumber As String
-                        extractedTicketNumber = ExtractTicketNumber(mailItem.Subject)
-                        Debug.Print "Gefundene Ticketnummer: " & extractedTicketNumber & _
-                                    "; Datum: " & closedMailDate
-
-                        ' 3) Zielordner anlegen (Archiv -> Jahr -> Monat), basierend auf closedMailDate
-                        Dim yearFolder As Outlook.Folder
-                        Dim monthFolder As Outlook.Folder
-                        Dim yearString As String
-                        Dim monthString As String
-
-                        yearString = Format(closedMailDate, "yyyy")
-                        monthString = Format(closedMailDate, "mm - mmmm")  ' "02 - Februar"
-
-                        Set yearFolder = GetOrCreateFolder(archivRoot, yearString)
-                        Set monthFolder = GetOrCreateFolder(yearFolder, monthString)
-
-                        ' 4) Verschieben des Ticketordners in den erstellten Archivpfad
-                        ticketFolder.MoveTo monthFolder
-
-                        Exit For  ' Schleife abbrechen
-                    End If
-                End If
-            Next j
-
-            If foundStatusChange Then
-                GoTo NextFolder
+        Set ticketFolder = tasksFolder.Folders(i)
+        
+        ' Optional: Ordner ignorieren, falls es der Archivordner selbst ist
+        If LCase(ticketFolder.name) = LCase(FOLDER_ARCHIV) Then
+            GoTo ContinueNext
+        End If
+        
+        ' Holen wir uns die Ticketnummer aus dem Ordnernamen,
+        ' z.B. Ordner heiﬂt: "#3621 (Betreff/Resttext)"
+        Dim ticketId As Long
+        ticketId = ExtractTicketIdFromFolderName(ticketFolder.name)
+        
+        If ticketId > 0 Then
+            ' Jetzt: Status via API ermitteln
+            If NinjaAPICall.IsTicketClosedByApi(ticketId) Then
+                ' Falls wir "geschlossen" haben, ermitteln wir zus‰tzlich das Abschlussdatum
+                Dim closedDate As Date
+                closedDate = GetTicketClosedDateByApi(ticketId)
+                
+                ' => Ticket ist geschlossen => verschieben ins Archiv
+                Call MoveFolderToArchive(ticketFolder, tasksFolder, closedDate)
             End If
         End If
-NextFolder:
+
+ContinueNext:
     Next i
 End Sub
+
+' Hilfsfunktion, um aus Ordnernamen "#3621 (blabla)" die 3621 zu ziehen
+' Sie kˆnnen auch Ihren vorhandenen Regex-Ansatz wiederverwenden.
+Private Function ExtractTicketIdFromFolderName(ByVal folderName As String) As Long
+    On Error Resume Next
+    ' Beispiel: suchen nach Muster: "#1234"
+    Dim parts() As String
+    parts = Split(folderName, " ")
+    ' parts(0) w‰re z.B. "#3621"
+    If Left(parts(0), 1) = "#" Then
+        ExtractTicketIdFromFolderName = CLng(Mid$(parts(0), 2))
+    End If
+End Function
+
+
+' Beispielfunktion, um Ordner ins Archiv zu verschieben
+' und zwar in die Struktur: Archiv -> <Jahr> -> <Monat> -> [Ticket-Folder]
+Private Sub MoveFolderToArchive(ByVal ticketFolder As Outlook.Folder, ByVal tasksFolder As Outlook.Folder, Optional ByVal closedDate As Date = 0)
+    Dim archiveFolder As Outlook.Folder
+    Set archiveFolder = GetOrCreateFolder(tasksFolder, FOLDER_ARCHIV)
+
+    ' Falls kein close-Datum ermittelt wurde, nehmen wir das heutige Datum
+    If closedDate = 0 Then closedDate = Date
+
+    Dim yearFolder As Outlook.Folder
+    Dim monthFolder As Outlook.Folder
+
+    Dim strYear As String
+    Dim strMonth As String
+
+    strYear = CStr(Year(closedDate))
+    strMonth = Format(closedDate, "mm") & "-" & Format(closedDate, "mmmm")
+
+    Set yearFolder = GetOrCreateFolder(archiveFolder, strYear)
+    Set monthFolder = GetOrCreateFolder(yearFolder, strMonth)
+
+    ticketFolder.MoveTo monthFolder
+    Debug.Print "Ordner '" & ticketFolder.name & "' wurde archiviert in " & strYear & "\\" & strMonth
+End Sub
+
+
 
 Private Function IsStatusClosed(ByVal bodyText As String) As Boolean
     ' Testet per RegEx auf "Status: .* ? Geschlossen".
@@ -310,7 +386,7 @@ Public Sub RunEmailRule()
     ' Hole alle Elemente im Posteingang
     Set items = inbox.items
     
-    ' Durchlaufe die E-Mails im Posteingang r√ºckw√§rts
+    ' Durchlaufe die E-Mails im Posteingang r¸ckw‰rts
     For i = items.Count To 1 Step -1
         Set item = items(i)
         If TypeOf item Is Outlook.mailItem Then
@@ -343,7 +419,7 @@ Public Sub RunArchiveRule()
         Exit Sub
     End If
 
-    ' Archivierung ausf√ºhren
+    ' Archivierung ausf?hren
     ArchiveTasksFolder tasksFolder
 
     MsgBox "Archivierung abgeschlossen.", vbInformation

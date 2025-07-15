@@ -90,10 +90,19 @@ Public Scopes As Variant
 ' This method initializes the 'ClientId' property with the provided value.
 ' These properties are used during the authentication and token exchange processes.
 ''
+
 Public Sub Setup(ClientId As String)
     Me.ClientId = ClientId
-    Me.CodeVerifier = BCrypt.Random(32, , True, True)
-    Me.CodeChallenge = BCrypt.Hash(Me.CodeVerifier, bcSha256, True)
+    Me.CodeVerifier = BCrypt.Random(TextSize:=32, TrueBase64:=True, UrlSafeToggle:=True)
+
+    Dim auth_VerifierBytes() As Byte
+    Dim auth_Hash() As Byte
+
+    ' Convert the CodeVerifier to raw ASCII bytes before hashing
+    auth_VerifierBytes = StrConv(Me.CodeVerifier, vbFromUnicode)
+    
+    auth_Hash = BCrypt.HashData(auth_VerifierBytes, bcSha256)
+    Me.CodeChallenge = BCrypt.Hash(Text:=Me.CodeVerifier, BcryptHashAlgorithmId:=bcSha256, UrlSafeToggle:=True)
 End Sub
 
 ''
@@ -399,7 +408,7 @@ Public Function GetLoginUrl() As String
         auth_Request.AddQuerystringParam "scope", ""
     End If
     
-    ' Add code challenge and code challange method for PKCE
+    ' Add code challenge and code challenge method for PKCE
     auth_Request.AddQuerystringParam "code_challenge", Me.CodeChallenge
     auth_Request.AddQuerystringParam "code_challenge_method", "S256"
     

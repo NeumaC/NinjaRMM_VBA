@@ -92,8 +92,8 @@ Public Scopes As Variant
 ''
 Public Sub Setup(ClientId As String)
     Me.ClientId = ClientId
-    Me.CodeVerifier = BCrypt.Random(32, , True)
-    Me.CodeChallenge = BCrypt.Hash(Me.CodeVerifier)
+    Me.CodeVerifier = BCrypt.Random(32, , True, True)
+    Me.CodeChallenge = BCrypt.Hash(Me.CodeVerifier, bcSha256, True)
 End Sub
 
 ''
@@ -241,7 +241,7 @@ End Sub
 '
 ' Note: This method uses and updates the 'AccessToken', 'AccessTokenExpiration', 'RefreshToken', 'RefreshTokenExpiration', and 'AuthorizationCode' properties.
 ''
-Public Sub GetToken(Client As WebClient)
+Public Sub GetToken(client As WebClient)
         
     ' Check if the current access token exists and is not expired
     If Me.AccessToken <> "" And Not Me.AccessTokenExpiration < Now Then
@@ -250,7 +250,7 @@ Public Sub GetToken(Client As WebClient)
     ' Check if the current refresh token exists and is not expired
     ElseIf Me.RefreshToken <> "" And Not Me.RefreshTokenExpiration < Now Then
         WebHelpers.LogDebug "RefreshToken exist and not expired, attempting to refresh AccessToken", "NinjaAuthenticator.GetToken"
-        GetRefreshedToken Client
+        GetRefreshedToken client
     ' If no valid tokens exist, obtain a new access token and refresh token
     Else
         ' Login first if the authorization code doesn't exist
@@ -259,7 +259,7 @@ Public Sub GetToken(Client As WebClient)
             Me.Login
         End If
         WebHelpers.LogDebug "Tokens not found or expired, getting new tokens", "NinjaAuthenticator.GetToken"
-        GetNewToken Client
+        GetNewToken client
     End If
     
     ' Store the new or refreshed tokens
@@ -321,9 +321,9 @@ End Sub
 ' 1. Call the 'GetToken' method to ensure that the current access token is valid and not expired.
 ' 2. Set the 'Authorization' header with the current access token.
 ''
-Private Sub IWebAuthenticator_BeforeExecute(ByVal Client As WebClient, ByRef Request As WebRequest)
+Private Sub IWebAuthenticator_BeforeExecute(ByVal client As WebClient, ByRef Request As WebRequest)
     ' Ensure a valid access token is available for the API request
-    Me.GetToken Client
+    Me.GetToken client
     
     ' Set the 'Accept' header with the JSON format reference
     Request.SetHeader "Accept", "application/json"
@@ -340,7 +340,7 @@ End Sub
 ' @param {WebRequest} Request The request that was just executed
 ' @param in|out {WebResponse} Response to request
 ''
-Private Sub IWebAuthenticator_AfterExecute(ByVal Client As WebClient, ByVal Request As WebRequest, ByRef Response As WebResponse)
+Private Sub IWebAuthenticator_AfterExecute(ByVal client As WebClient, ByVal Request As WebRequest, ByRef Response As WebResponse)
     ' e.g. Handle 401 Unauthorized or other issues
 End Sub
 
@@ -351,7 +351,7 @@ End Sub
 ' @param {WebRequest} Request
 ' @param in|out {WinHttpRequest} Http
 ''
-Private Sub IWebAuthenticator_PrepareHttp(ByVal Client As WebClient, ByVal Request As WebRequest, ByRef Http As Object)
+Private Sub IWebAuthenticator_PrepareHttp(ByVal client As WebClient, ByVal Request As WebRequest, ByRef Http As Object)
     ' e.g. Update option, headers, etc.
 End Sub
 
@@ -362,7 +362,7 @@ End Sub
 ' @param {WebRequest} Request
 ' @param in|out {String} Curl
 ''
-Private Sub IWebAuthenticator_PrepareCurl(ByVal Client As WebClient, ByVal Request As WebRequest, ByRef Curl As String)
+Private Sub IWebAuthenticator_PrepareCurl(ByVal client As WebClient, ByVal Request As WebRequest, ByRef Curl As String)
     ' e.g. Add flags to cURL
 End Sub
 
@@ -401,7 +401,7 @@ Public Function GetLoginUrl() As String
     
     ' Add code challenge and code challange method for PKCE
     auth_Request.AddQuerystringParam "code_challenge", Me.CodeChallenge
-    auth_Request.AddQuerystringParam "code_challange_method", "S256"
+    auth_Request.AddQuerystringParam "code_challenge_method", "S256"
     
     ' Get the formatted URL and clean up
     GetLoginUrl = auth_Request.FormattedResource
@@ -597,7 +597,7 @@ End Function
 '
 ' Note: This method uses the 'ClientId', 'CodeVerifier', 'AuthorizationCode', and 'auth_RedirectUrl' properties.
 ''
-Private Sub GetNewToken(Client As WebClient)
+Private Sub GetNewToken(client As WebClient)
     On Error GoTo auth_Cleanup
     
     Dim auth_TokenClient As WebClient
@@ -606,9 +606,9 @@ Private Sub GetNewToken(Client As WebClient)
     Dim auth_Response As WebResponse
     
     ' Clone the provided WebClient instance to avoid accidental interactions
-    Set auth_TokenClient = Client.Clone
+    Set auth_TokenClient = client.Clone
     Set auth_TokenClient.Authenticator = Nothing
-    auth_TokenClient.BaseUrl = "https://eu.ninjarmm.com/ws/oath/"
+    auth_TokenClient.BaseUrl = "https://eu.ninjarmm.com/ws/oauth/"
     
     ' Prepare the token request
     auth_Request.Resource = "token"
@@ -623,7 +623,7 @@ Private Sub GetNewToken(Client As WebClient)
     auth_Body.Add "code", Me.AuthorizationCode
     auth_Body.Add "code_verifier", Me.CodeVerifier
     auth_Body.Add "redirect_uri", auth_RedirectUrl
-    auth_Body.Add "scope", "offline_access"
+    auth_Body.Add "scope", "offline_access monitoring"
     Set auth_Request.Body = auth_Body
     
     Set auth_Response = auth_TokenClient.Execute(auth_Request)
@@ -715,7 +715,7 @@ End Sub
 '
 ' Note: This method uses the 'ClientId', 'ClientSecret', and 'RefreshToken' properties.
 ''
-Private Sub GetRefreshedToken(Client As WebClient)
+Private Sub GetRefreshedToken(client As WebClient)
     On Error GoTo auth_Cleanup
     
     Dim auth_TokenClient As WebClient
@@ -724,9 +724,9 @@ Private Sub GetRefreshedToken(Client As WebClient)
     Dim auth_Response As WebResponse
     
     ' Clone the provided WebClient instance to avoid accidental interactions
-    Set auth_TokenClient = Client.Clone
+    Set auth_TokenClient = client.Clone
     Set auth_TokenClient.Authenticator = Nothing
-    auth_TokenClient.BaseUrl = "https://eu.ninjarmm.com/ws/oath/"
+    auth_TokenClient.BaseUrl = "https://eu.ninjarmm.com/ws/oauth/"
     
     ' Prepare the token refresh request
     auth_Request.Resource = "token"
@@ -780,7 +780,7 @@ Private Sub GetRefreshedToken(Client As WebClient)
                 Set auth_Request = Nothing
                 Set auth_Response = Nothing
                 
-                GetNewToken Client
+                GetNewToken client
             Case vbNo
                 ' Notify stopping refresh token process
                 WebHelpers.printMsg "NinjaAuthenticator.GetRefreshedToken", "Abort refreshing token process"
@@ -881,7 +881,7 @@ StoreTokens_Cleanup:
     Set ns = Nothing
     Set inbox = Nothing
     Set storeFolder = Nothing
-    Set TokeStore = Nothing
+    Set TokenStore = Nothing
     Set TokenUP = Nothing
     
     ' Error handling block
@@ -1088,7 +1088,7 @@ ClearTokens_Cleanup:
     Set ns = Nothing
     Set inbox = Nothing
     Set storeFolder = Nothing
-    Set TokeStore = Nothing
+    Set TokenStore = Nothing
     
     ' Error handling block
     If Err.Number <> 0 Then

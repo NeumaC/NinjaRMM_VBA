@@ -1379,7 +1379,8 @@ End Function
 '
 Public Function Hash( _
     ByVal Text As String, _
-    Optional ByVal BcryptHashAlgorithmId As BcHashAlgorithm = BcHashAlgorithm.bcSha256) _
+    Optional ByVal BcryptHashAlgorithmId As BcHashAlgorithm = BcHashAlgorithm.bcSha256, _
+    Optional ByVal UrlSafeToggle As Boolean = False) _
     As String
     
     Dim HashBase64          As String
@@ -1387,7 +1388,11 @@ Public Function Hash( _
     If Text = "" Then
         ' No data. Nothing to do.
     Else
-        HashBase64 = ByteBase64(HashData((Text), BcryptHashAlgorithmId))
+        If UrlSafeToggle Then
+            HashBase64 = ByteBase64Url(HashData((Text), BcryptHashAlgorithmId))
+        Else
+            HashBase64 = ByteBase64(HashData((Text), BcryptHashAlgorithmId))
+        End If
     End If
     
     Hash = HashBase64
@@ -1593,7 +1598,8 @@ End Function
 Public Function Random( _
     ByVal TextSize As Long, _
     Optional ByVal BcryptRandomAlgorithmId As BcRandomAlgorithm = BcRandomAlgorithm.bcRng, _
-    Optional ByVal TrueBase64 As Boolean) _
+    Optional ByVal TrueBase64 As Boolean, _
+    Optional ByVal UrlSafeToggle As Boolean = False) _
     As String
     
     Dim Text    As String
@@ -1601,11 +1607,23 @@ Public Function Random( _
     If TextSize <= 0 Then
         ' Nothing to do.
     ElseIf TrueBase64 Then
-        Text = ByteBase64(RandomData(TextSize, BcryptRandomAlgorithmId))
+        If UrlSafeToggle Then
+            Text = ByteBase64Url(RandomData(TextSize, BcryptRandomAlgorithmId))
+        Else
+            Text = ByteBase64(RandomData(TextSize, BcryptRandomAlgorithmId))
+        End If
     ElseIf TextSize < 4 Then
-        Text = Left(ByteBase64(RandomData(TextSize, BcryptRandomAlgorithmId)), TextSize)
+        If UrlSafeToggle Then
+            Text = Left(ByteBase64Url(RandomData(TextSize, BcryptRandomAlgorithmId)), TextSize)
+        Else
+            Text = Left(ByteBase64(RandomData(TextSize, BcryptRandomAlgorithmId)), TextSize)
+        End If
     Else
-        Text = Left(ByteBase64(RandomData(TextSize * 0.75, BcryptRandomAlgorithmId)), TextSize)
+        If UrlSafeToggle Then
+            Text = Left(ByteBase64Url(RandomData(TextSize * 0.75, BcryptRandomAlgorithmId)), TextSize)
+        Else
+            Text = Left(ByteBase64(RandomData(TextSize * 0.75, BcryptRandomAlgorithmId)), TextSize)
+        End If
     End If
     
     Random = Text
@@ -1656,7 +1674,27 @@ Public Function TextBase64( _
 
 End Function
 
-
+' Convert and return a byte array as a Base64 url-safe encoded string.
+' Generic function.
+'
+' To be called from functions Encrypt and Hash.
+'
+' 2021-10-24. Gustav Brock, Cactus Data ApS, CPH.
+'
+Public Function ByteBase64Url( _
+    ByRef Data() As Byte) _
+    As String
+    
+    Dim Base64 As String
+    Base64 = ByteBase64(Data)
+    
+    ' Base64 -> Base64URL
+    Base64 = Replace(Base64, "+", "-")
+    Base64 = Replace(Base64, "/", "_")
+    Base64 = Replace(Base64, "=", "") ' remove padding
+    
+    ByteBase64Url = Base64
+End Function
 
 
 

@@ -58,10 +58,18 @@ Private Const auth_AuthorizationUrl As String = "https://eu.ninjarmm.com/ws/oaut
 ' Redirect URL registered inside your NinjaRMM application
 Private Const auth_RedirectUrl As String = "http://127.0.0.1:12345/auth"
 ' StorageItem name to store reusable tokens (refresh token - valid for 60 days)
-Private Const auth_StorageItemTokensStorage As String = "StorageItem_NinjaTokens"
+Private Const auth_StorageItemTokensStorage As String = "StorageItemNinjaTokens"
 ' Folder(Outlook.Folder) name to store Ninja token info (and ClientID)
 Private Const auth_TokensStorage As String = "Tickets"
 
+' StorageItem field names for tokens
+
+Private Const auth_FieldGetDatetime As String = "GetDatetime"
+Private Const auth_FieldAccessToken As String = "AccessToken"
+Private Const auth_FieldATExpiredDatetime As String = "ATExpiredDatetime"
+Private Const auth_FieldRefreshToken As String = "RefreshToken"
+Private Const auth_FieldRTExpiredDatetime As String = "RTExpiredDatetime"
+Private Const auth_FieldCodeVerifier As String = "CodeVerifier"
 ' --------------------------------------------- '
 ' Properties
 ' --------------------------------------------- '
@@ -860,12 +868,13 @@ Private Sub StoreTokens()
         Set TokenStore = storeFolder.GetStorage(auth_StorageItemTokensStorage, olIdentifyBySubject)
         Set TokenUP = TokenStore.UserProperties
         ' Create the StorageItem entries for storing tokens
-        TokenUP.Add "Get_Datetime", olDateTime
-        TokenUP.Add "Access_Token", olText
-        TokenUP.Add "AT_Expired_Datetime", olDateTime
-        TokenUP.Add "Refresh_Token", olText
-        TokenUP.Add "RT_Expired_Datetime", olDateTime
-        TokenUP.Add "Code_Verifier", olText
+        TokenUP.Add auth_FieldGetDatetime, olDateTime
+        TokenUP.Add auth_FieldAccessToken, olText
+        TokenUP.Add auth_FieldATExpiredDatetime, olDateTime
+        TokenUP.Add auth_FieldRefreshToken, olText
+        TokenUP.Add auth_FieldRTExpiredDatetime, olDateTime
+        TokenUP.Add auth_FieldCodeVerifier, olText
+
         
     Else
         ' StorageItem exists, set the object variable
@@ -874,12 +883,12 @@ Private Sub StoreTokens()
     End If
     
     ' Add a new row to the table and fill it with token data
-    TokenUP.item("Get_Datetime").Value = Now
-    TokenUP.item("Access_Token").Value = Me.AccessToken
-    TokenUP.item("AT_Expired_Datetime").Value = Me.AccessTokenExpiration
-    TokenUP.item("Refresh_Token").Value = Me.RefreshToken
-    TokenUP.item("RT_Expired_Datetime").Value = Me.RefreshTokenExpiration
-    TokenUP.item("Code_Verifier").Value = Me.CodeVerifier
+    TokenUP.item(auth_FieldGetDatetime).Value = Now
+    TokenUP.item(auth_FieldAccessToken).Value = Me.AccessToken
+    TokenUP.item(auth_FieldATExpiredDatetime).Value = Me.AccessTokenExpiration
+    TokenUP.item(auth_FieldRefreshToken).Value = Me.RefreshToken
+    TokenUP.item(auth_FieldRTExpiredDatetime).Value = Me.RefreshTokenExpiration
+    TokenUP.item(auth_FieldCodeVerifier).Value = Me.CodeVerifier
                          
     ' Log success of storing the tokens
     WebHelpers.LogDebug "Stored existing tokens success, StorageItem: " & auth_StorageItemTokensStorage, "NinjaAuthenticator.StoreTokens"
@@ -971,11 +980,11 @@ Private Sub LoadTokens()
     End If
     
     ' Load tokens into the auth object
-    Me.AccessToken = TokenUP.item("Access_Token").Value
-    Me.AccessTokenExpiration = TokenUP.item("AT_Expired_Datetime").Value
-    Me.RefreshToken = TokenUP.item("Refresh_Token").Value
-    Me.RefreshTokenExpiration = TokenUP.item("RT_Expired_Datetime").Value
-    Me.CodeVerifier = TokenUP.item("Code_Verifier").Value
+    Me.AccessToken = TokenUP.item(auth_FieldAccessToken).Value
+    Me.AccessTokenExpiration = TokenUP.item(auth_FieldATExpiredDatetime).Value
+    Me.RefreshToken = TokenUP.item(auth_FieldRefreshToken).Value
+    Me.RefreshTokenExpiration = TokenUP.item(auth_FieldRTExpiredDatetime).Value
+    Me.CodeVerifier = TokenUP.item(auth_FieldCodeVerifier).Value
     
     ' Check if the access token has expired
     If Me.AccessTokenExpiration < Now Then

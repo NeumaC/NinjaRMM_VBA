@@ -46,6 +46,7 @@ It also integrates with the NinjaRMM API to determine if a ticket is closed base
 - **ArchiveTasksFolderAPI**: New archiving routine that queries the API for each ticket's status and subject before moving the folder to the archive structure.
 - **Improved PKCE authentication**: `NinjaAuthenticator.cls` now generates a 64-byte code verifier, hashes its raw ASCII bytes with SHA-256 via `BCrypt.HashData`, and removes the unnecessary `scope` header when requesting tokens.
 - **Inbox item type checks**: `RunEmailRule` only processes objects that are `mailItem` instances to avoid type mismatch errors.
+- **CreateTicketFromEmail**: Creates a NinjaRMM ticket directly from an Outlook message and uploads any attachments.
 
 ## How It Works
 

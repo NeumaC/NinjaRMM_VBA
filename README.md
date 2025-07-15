@@ -63,7 +63,7 @@ It also integrates with the NinjaRMM API to determine if a ticket is closed base
 - `FOLDER_ARCHIV`: Name of the root archive folder (e.g. `"Archiv"`).
 - `FOLDER_TICKETS`: Name of the folder for active tickets (e.g. `"Tickets"`).
 - `ALLOWED_SENDER`: Allowed sender email address for incoming ticket emails.
-- `REGEX_SUBJECT_PATTERN`: Regex pattern used to detect the ticket number in the subject (e.g. `^\[gfoellner-at\]\s*\(#(\d+)\)`).
+- `REGEX_SUBJECT_PATTERN`: Regex pattern used to detect the ticket number in the subject (e.g. `^\[.*\]\s*\(#(\d+)\)`).
 - `REGEX_TICKET_REPLACE`: Regex pattern for optional subject cleanup.
 
 ## Requirements

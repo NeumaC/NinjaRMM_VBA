@@ -328,8 +328,9 @@ Public Function GetTicketClosedDateByApi(ticketId As Long) As Date
                 If autom.Exists("id") Then
                     If CLng(autom("id")) = 1000 Then
                         ' Dann Zeitstempel aus createTime übernehmen
+                        ' Wert direkt mit Val() umwandeln – unabhängig vom Dezimaltrennzeichen
                         Dim dblTime As Double
-                        dblTime = CDbl(logItem("createTime")) ' Unix-Epoche in sek. oder ms?
+                        dblTime = Val(CStr(logItem("createTime")))
 
                         ' Gemäß Beispiel: 1744206453.867411000 => sek seit 1.1.1970
                         ' -> In VBA-Datum umrechnen:
@@ -337,7 +338,7 @@ Public Function GetTicketClosedDateByApi(ticketId As Long) As Date
                         Dim epoch As Date
                         epoch = #1/1/1970#
 
-                        GetTicketClosedDateByApi = epoch + (dblTime / 86400#)
+                        GetTicketClosedDateByApi = epoch + (dblTime / 86400)
                         Exit Function
                     End If
                 End If
@@ -355,7 +356,6 @@ ErrHandler:
     GetTicketClosedDateByApi = 0
 End Function
 
-End Function
 
 ' Liefert den aktuellen Betreff eines Tickets
 Public Function GetTicketSubjectByApi(ticketId As Long) As String

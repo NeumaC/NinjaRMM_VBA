@@ -93,7 +93,7 @@ Public Scopes As Variant
 
 Public Sub Setup(ClientId As String)
     Me.ClientId = ClientId
-    Me.CodeVerifier = BCrypt.Random(TextSize:=32, TrueBase64:=True, UrlSafeToggle:=True)
+    Me.CodeVerifier = BCrypt.Random(TextSize:=64, TrueBase64:=True, UrlSafeToggle:=True)
 
     Dim auth_VerifierBytes() As Byte
     Dim auth_Hash() As Byte
@@ -101,7 +101,7 @@ Public Sub Setup(ClientId As String)
     ' Convert the CodeVerifier to raw ASCII bytes before hashing
     auth_VerifierBytes = StrConv(Me.CodeVerifier, vbFromUnicode)
     
-    Me.CodeChallenge = BCrypt.Hash(Text:=auth_VerifierBytes, BcryptHashAlgorithmId:=bcSha256, UrlSafeToggle:=True)
+    Me.CodeChallenge = BCrypt.ByteBase64Url(BCrypt.HashData(auth_VerifierBytes, bcSha256))
 End Sub
 
 ''
@@ -631,7 +631,7 @@ Private Sub GetNewToken(client As WebClient)
     auth_Body.Add "code", Me.AuthorizationCode
     auth_Body.Add "code_verifier", Me.CodeVerifier
     auth_Body.Add "redirect_uri", auth_RedirectUrl
-    auth_Body.Add "scope", "offline_access monitoring"
+    'auth_Body.Add "scope", "offline_access monitoring"
     Set auth_Request.Body = auth_Body
     
     Set auth_Response = auth_TokenClient.Execute(auth_Request)

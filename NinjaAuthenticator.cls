@@ -14,7 +14,7 @@ Attribute VB_Exposed = False
 '
 ' Ninja Authenticator
 ' Custom IWebAuthenticator for "Ninja" authentication for NinjaRMM API
-' Source (vba-xero-api) credits: Musa Yohanes - https://github.com/Muyoouu/vba-xero-api
+' Adapted from Musa Yohanes' vba-xero-api project for use with NinjaRMM - https://github.com/Muyoouu/vba-xero-api
 ' Source (IWebAuthenticator) credits: Tim Hall - https://github.com/VBA-tools/VBA-Web
 '
 ' Ninja authentication docs:
@@ -55,7 +55,7 @@ Option Explicit
 
 ' URL for login process
 Private Const auth_AuthorizationUrl As String = "https://eu.ninjarmm.com/ws/oauth/authorize"
-' Redirect URL registered inside Xero
+' Redirect URL registered inside your NinjaRMM application
 Private Const auth_RedirectUrl As String = "http://127.0.0.1:12345/auth"
 ' StorageItem name to store reusable tokens (refresh token - valid for 60 days)
 Private Const auth_StorageItemTokensStorage As String = "StorageItem_NinjaTokens"
@@ -101,13 +101,12 @@ Public Sub Setup(ClientId As String)
     ' Convert the CodeVerifier to raw ASCII bytes before hashing
     auth_VerifierBytes = StrConv(Me.CodeVerifier, vbFromUnicode)
     
-    auth_Hash = BCrypt.HashData(auth_VerifierBytes, bcSha256)
-    Me.CodeChallenge = BCrypt.Hash(Text:=Me.CodeVerifier, BcryptHashAlgorithmId:=bcSha256, UrlSafeToggle:=True)
+    Me.CodeChallenge = BCrypt.Hash(Text:=auth_VerifierBytes, BcryptHashAlgorithmId:=bcSha256, UrlSafeToggle:=True)
 End Sub
 
 ''
-' Direct user to login and authenticate in Xero website via browser.
-' Official documentation: https://developer.xero.com/documentation/guides/oauth2/auth-flow/#1-send-a-user-to-authorize-your-app
+' Direct user to login and authenticate in the NinjaRMM website via browser.
+' Official documentation: https://app.ninjarmm.com/apidocs-beta/authorization/flows/authorization-code-flow-with-proof-key-for-code-exchange-pkce
 '
 ' @method Login
 '
@@ -206,9 +205,9 @@ Public Sub Logout()
 End Sub
 
 ''
-' Adds a new scope to the list of authorized scopes for the Xero API.
-' To get a list of available scopes, visit https://developer.xero.com/documentation/guides/oauth2/scopes/
-' The 'Scopes' property is used during the authentication process to request access to specific areas of the Xero API.
+' Adds a new scope to the list of authorized scopes for the NinjaRMM API.
+' To get a list of available scopes, visit https://www.ninjaone.com/docs/integrations/how-to-set-up-api-oauth-token/
+' The 'Scopes' property is used during the authentication process to request access to specific areas of the NinjaRMM API.
 '
 ' @method AddScope
 ' @param {String} Scope - The scope to add to the authorized scopes list.
@@ -321,7 +320,7 @@ End Sub
 ' This method is called before every API request made to the Ninja API.
 '
 ' Ninja official documentation on required headers for API calls:
-' https://developer.xero.com/documentation/guides/oauth2/auth-flow/#6-call-the-api
+' https://app.ninjarmm.com/apidocs/?links.active=authorization
 '
 ' @param {WebClient} Client - The WebClient instance that is about to execute the request.
 ' @param in|out {WebRequest} Request - The request object that is about to be executed.

@@ -522,12 +522,12 @@ End Sub
 ' @param {WebClient} Client
 ' @param {WebRequest} Request
 ''
-Public Sub LogRequest(Client As WebClient, Request As WebRequest)
+Public Sub LogRequest(client As WebClient, Request As WebRequest)
     If EnableLogging Then
         Dim logStr As String
         
         logStr = "--> Request - " & Format(Now, "Long Time") & vbNewLine & _
-                 MethodToName(Request.Method) & " " & Client.GetFullUrl(Request) & vbNewLine
+                 MethodToName(Request.Method) & " " & client.GetFullUrl(Request) & vbNewLine
         
 
         Dim web_KeyValue As Dictionary
@@ -557,7 +557,7 @@ End Sub
 ' @param {WebRequest} Request
 ' @param {WebResponse} Response
 ''
-Public Sub LogResponse(Client As WebClient, Request As WebRequest, Response As WebResponse)
+Public Sub LogResponse(client As WebClient, Request As WebRequest, Response As WebResponse)
     If EnableLogging Then
         Dim logStr As String
         Dim web_KeyValue As Dictionary
@@ -1519,7 +1519,7 @@ Public Sub AddOrReplaceInKeyValues(KeyValues As Collection, Key As Variant, Valu
             If KeyValues.Count = 0 Then
                 KeyValues.Add web_NewKeyValue
             ElseIf web_Index > KeyValues.Count Then
-                KeyValues.Add web_NewKeyValue, After:=web_Index - 1
+                KeyValues.Add web_NewKeyValue, after:=web_Index - 1
             Else
                 KeyValues.Add web_NewKeyValue, Before:=web_Index
             End If
@@ -3187,9 +3187,11 @@ End Sub
 ' ============================================= '
 ' + Custom Helpers
 '
-' XeroAPICall v1.0.0
-' @author musayohanes00@gmail.com
-' https://github.com/Muyoouu/vba-xero-api
+' NinjaAPICall v1.0.0
+' @author NeumaC
+' https://github.com/NeumaC/NinjaRMM_VBA
+' Derived from https://github.com/Muyoouu/vba-xero-api
+' credit @author musayohanes00@gmail.com
 ' ============================================= '
 
 '----------------------------------------------------------------------------------

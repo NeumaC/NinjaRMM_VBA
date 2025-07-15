@@ -40,6 +40,13 @@ It also integrates with the NinjaRMM API to determine if a ticket is closed base
 - **Login_Click**, **GenerateReport_Click**, **ClearCache_Click**  
   - Example macros for user interaction with the Ninja API (managing authentication flows, generating sample reports, clearing cached tokens, etc.).
 
+## New Features
+
+- **Ticket subject sync**: Each processed ticket folder is renamed to match the latest subject from NinjaRMM. The helper routine `UpdateTicketFolderNameFromApi` calls `NinjaAPICall.GetTicketSubjectByApi` to fetch the current title and updates the folder name if necessary.
+- **ArchiveTasksFolderAPI**: New archiving routine that queries the API for each ticket's status and subject before moving the folder to the archive structure.
+- **Improved PKCE authentication**: `NinjaAuthenticator.cls` now generates a 64-byte code verifier, hashes its raw ASCII bytes with SHA-256 via `BCrypt.HashData`, and removes the unnecessary `scope` header when requesting tokens.
+- **Inbox item type checks**: `RunEmailRule` only processes objects that are `mailItem` instances to avoid type mismatch errors.
+
 ## How It Works
 
 1. **RunEmailRule**  

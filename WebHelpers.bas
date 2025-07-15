@@ -1932,6 +1932,27 @@ Public Function StringToAnsiBytes(web_Text As String) As Byte()
     StringToAnsiBytes = web_AnsiBytes
 End Function
 
+''
+' Convert UTF8 bytes to string
+'
+' @internal
+' @method BytesToUtf8String
+' @param {Bytes()} Byte
+' @return {String}
+''
+Public Function BytesToUtf8String(ByRef Bytes() As Byte) As String
+    Dim stream As Object
+    Set stream = CreateObject("ADODB.Stream")
+    stream.Type = 1
+    stream.Open
+    stream.Write Bytes
+    stream.Position = 0
+    stream.Type = 2
+    stream.Charset = "UTF-8"
+    BytesToUtf8String = stream.ReadText
+    stream.Close
+End Function
+
 #If Mac Then
 #Else
 Private Function web_AnsiBytesToBase64(web_Bytes() As Byte)
@@ -3463,7 +3484,13 @@ Public Function tcp_StartListener() As String
 
     scriptPath = GetTempPath & "\tcp_listener.ps1"
     outputPath = GetTempPath & "\tcp_output.txt"
-
+    
+    ' Ensure stale output file from previous runs is removed
+    Set fso = New Scripting.FileSystemObject
+    If fso.FileExists(outputPath) Then
+        fso.DeleteFile outputPath, True
+    End If
+    
     ' PowerShell-Code vorbereiten
     cmd = ""
     cmd = cmd & "$listener = [System.Net.Sockets.TcpListener]12345;" & vbCrLf
@@ -3478,7 +3505,6 @@ Public Function tcp_StartListener() As String
     cmd = cmd & "$listener.Stop();" & vbCrLf
 
     ' Skript speichern
-    Set fso = New Scripting.FileSystemObject
     Set ts = fso.CreateTextFile(scriptPath, True)
     ts.Write cmd
     ts.Close

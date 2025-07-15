@@ -13,11 +13,11 @@ Option Explicit
 Public Const FOLDER_ARCHIV As String = "Archiv"
 Public Const FOLDER_TICKETS As String = "Tickets"
 
-Public Const ALLOWED_SENDER As String = "it-support | Gföllner"
+Public Const ALLOWED_SENDER As String = "it-support"
 
-Public Const REGEX_SUBJECT_PATTERN As String = "^\[gfoellner-at\]\s*\(#(\d+)\)(.*)"
-Public Const REGEX_TICKETNUMBER_ONLY As String = "^\[gfoellner-at\]\s*\(#(\d+)\)"
-Public Const REGEX_TICKET_REPLACE As String = "TICKET \(Gföllner - ([A-Z]+)\)( / )"
+Public Const REGEX_SUBJECT_PATTERN As String = "^\[.*\]\s*\(#(\d+)\)(.*)"
+Public Const REGEX_TICKETNUMBER_ONLY As String = "^\[.*\]\s*\(#(\d+)\)"
+Public Const REGEX_TICKET_REPLACE As String = "TICKET \(([A-Z]+)\)( / )"
 Public Const REGEX_STATUS_CLOSED As String = "Status:\s?.*?\s?Geschlossen"
 
 Public Const USE_API As Boolean = True

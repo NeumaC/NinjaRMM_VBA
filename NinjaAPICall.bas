@@ -242,7 +242,7 @@ Public Function IsTicketClosedByApi(ByVal ticketId As Long) As Boolean
     '               Passen Sie das ggf. an Ihre Struktur an!
 
     Dim client As WebClient
-    Set client = NinjaClient ' aus NinjaAPICall.bas oder Ã¤hnlich
+    Set client = NinjaClient ' aus NinjaAPICall.bas oder ähnlich
 
     ' Neues Request-Objekt erstellen
     Dim req As New WebRequest
@@ -271,7 +271,7 @@ Public Function IsTicketClosedByApi(ByVal ticketId As Long) As Boolean
         Dim statusDict As Dictionary
         Set statusDict = resp.Data("status")
         
-        ' statusId prÃ¼fen
+        ' statusId prüfen
         Dim sid As Long
         sid = CLng(statusDict("statusId"))
         
@@ -310,7 +310,7 @@ Public Function GetTicketClosedDateByApi(ticketId As Long) As Date
     Set resp = client.Execute(req)
 
     If resp.StatusCode = 200 Then
-        ' Wir erwarten ein Array von Log-EintrÃ¤gen
+        ' Wir erwarten ein Array von Log-Einträgen
         Dim arrLogs As Collection
         Set arrLogs = resp.Data ' i.d.R. ein Collection-Objekt
 
@@ -319,7 +319,7 @@ Public Function GetTicketClosedDateByApi(ticketId As Long) As Date
             Dim logItem As Dictionary
             Set logItem = arrLogs.item(i)
 
-            ' PrÃ¼fen, ob automation vorhanden
+            ' Prüfen, ob automation vorhanden
             If logItem.Exists("automation") Then
                 Dim autom As Dictionary
                 Set autom = logItem("automation")
@@ -327,11 +327,11 @@ Public Function GetTicketClosedDateByApi(ticketId As Long) As Date
                 ' Falls automation.id = 1000 => das ist unser finaler close-Eintrag
                 If autom.Exists("id") Then
                     If CLng(autom("id")) = 1000 Then
-                        ' Dann Zeitstempel aus createTime Ã¼bernehmen
+                        ' Dann Zeitstempel aus createTime übernehmen
                         Dim dblTime As Double
                         dblTime = CDbl(logItem("createTime")) ' Unix-Epoche in sek. oder ms?
 
-                        ' GemÃ¤ÃŸ Beispiel: 1744206453.867411000 => sek seit 1.1.1970
+                        ' Gemäß Beispiel: 1744206453.867411000 => sek seit 1.1.1970
                         ' -> In VBA-Datum umrechnen:
                         '   1 Tag = 86400 sek
                         Dim epoch As Date
@@ -373,8 +373,11 @@ Public Function GetTicketSubjectByApi(ticketId As Long) As String
     Set resp = client.Execute(req)
 
     If resp.StatusCode = 200 Then
+        Dim jsonText As String
+        jsonText = WebHelpers.BytesToUtf8String(resp.Body)
+        
         Dim ticketDict As Dictionary
-        Set ticketDict = resp.Data
+        Set ticketDict = WebHelpers.ParseJson(jsonText)
 
         If ticketDict.Exists("subject") Then
             GetTicketSubjectByApi = CStr(ticketDict("subject"))

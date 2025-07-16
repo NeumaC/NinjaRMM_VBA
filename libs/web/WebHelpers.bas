@@ -3512,7 +3512,7 @@ Public Function tcp_StartListener() As String
     ' PowerShell-Skript starten
     Shell "powershell -ExecutionPolicy Bypass -WindowStyle Hidden -File """ & scriptPath & """", vbHide
 
-    ' Pfad zur Ergebnisdatei zurückgeben
+    ' Pfad zur Ergebnisdatei zurÃ¼ckgeben
     tcp_StartListener = outputPath
 End Function
 

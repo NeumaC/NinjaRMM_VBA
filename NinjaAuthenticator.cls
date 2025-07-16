@@ -74,7 +74,7 @@ Private Const auth_FieldCodeVerifier As String = "CodeVerifier"
 ' Properties
 ' --------------------------------------------- '
 
-Public ClientId As String
+Public clientId As String
 Public CodeChallenge As String
 Public CodeVerifier As String
 Public ApiKey As String
@@ -99,8 +99,8 @@ Public Scopes As Variant
 ' These properties are used during the authentication and token exchange processes.
 ''
 
-Public Sub Setup(ClientId As String)
-    Me.ClientId = ClientId
+Public Sub Setup(clientId As String)
+    Me.clientId = clientId
     Me.CodeVerifier = BCrypt.Random(TextSize:=64, TrueBase64:=True, UrlSafeToggle:=True)
 
     Dim auth_VerifierBytes() As Byte
@@ -191,7 +191,7 @@ auth_Cleanup:
         Else
             WebHelpers.LogDebug "Login succeeded - auth code: " & Me.AuthorizationCode, "NinjaAuthenticator.Login"
             ' Inform user that the login process succeeded
-            MsgBox "Ninja login succeeded!", vbInformation + vbOKOnly, "NinjaRMM Ticket Connector - Microsoft Outlook"
+            'MsgBox "Ninja login succeeded!", vbInformation + vbOKOnly, "NinjaRMM Ticket Connector - Microsoft Outlook"
         End If
     End If
 End Sub
@@ -404,7 +404,7 @@ Public Function GetLoginUrl() As String
     
     ' Add required parameters
     auth_Request.AddQuerystringParam "response_type", "code"
-    auth_Request.AddQuerystringParam "client_id", Me.ClientId
+    auth_Request.AddQuerystringParam "client_id", Me.clientId
     auth_Request.AddQuerystringParam "redirect_uri", auth_RedirectUrl
     auth_Request.AddQuerystringParam "state", "123"
     
@@ -635,12 +635,12 @@ Private Sub GetNewToken(client As WebClient)
     
     ' Prepare the request body
     auth_Body.Add "grant_type", "authorization_code"
-    auth_Body.Add "client_id", Me.ClientId
+    auth_Body.Add "client_id", Me.clientId
     auth_Body.Add "code", Me.AuthorizationCode
     auth_Body.Add "code_verifier", Me.CodeVerifier
     auth_Body.Add "redirect_uri", auth_RedirectUrl
     'auth_Body.Add "scope", "offline_access monitoring"
-    Set auth_Request.Body = auth_Body
+    Set auth_Request.body = auth_Body
     
     Set auth_Response = auth_TokenClient.Execute(auth_Request)
     
@@ -664,7 +664,7 @@ Private Sub GetNewToken(client As WebClient)
                 
                 ' Re-login and update the auth code
                 Me.Login
-                auth_Request.Body("code") = Me.AuthorizationCode
+                auth_Request.body("code") = Me.AuthorizationCode
                 
                 ' Re-attempt request to get token
                 Set auth_Response = auth_TokenClient.Execute(auth_Request)
@@ -753,9 +753,9 @@ Private Sub GetRefreshedToken(client As WebClient)
     
     ' Prepare the request body
     auth_Body.Add "grant_type", "refresh_token"
-    auth_Body.Add "client_id", Me.ClientId
+    auth_Body.Add "client_id", Me.clientId
     auth_Body.Add "refresh_token", Me.RefreshToken
-    Set auth_Request.Body = auth_Body
+    Set auth_Request.body = auth_Body
     
     Set auth_Response = auth_TokenClient.Execute(auth_Request)
     
@@ -889,6 +889,9 @@ Private Sub StoreTokens()
     TokenUP.item(auth_FieldRefreshToken).Value = Me.RefreshToken
     TokenUP.item(auth_FieldRTExpiredDatetime).Value = Me.RefreshTokenExpiration
     TokenUP.item(auth_FieldCodeVerifier).Value = Me.CodeVerifier
+    
+    ' Persist the StorageItem with the updated values
+    TokenStore.Save
                          
     ' Log success of storing the tokens
     WebHelpers.LogDebug "Stored existing tokens success, StorageItem: " & auth_StorageItemTokensStorage, "NinjaAuthenticator.StoreTokens"

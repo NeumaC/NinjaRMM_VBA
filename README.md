@@ -47,6 +47,7 @@ It also integrates with the NinjaRMM API to determine if a ticket is closed base
 - **Improved PKCE authentication**: `NinjaAuthenticator.cls` now generates a 64-byte code verifier, hashes its raw ASCII bytes with SHA-256 via `BCrypt.HashData`, and removes the unnecessary `scope` header when requesting tokens.
 - **Inbox item type checks**: `RunEmailRule` only processes objects that are `mailItem` instances to avoid type mismatch errors.
 - **CreateTicketFromEmail**: Creates a NinjaRMM ticket directly from an Outlook message and uploads any attachments.
+- **TestCreateTicketFromEmail**: Macro demonstrating how to call `CreateTicketFromEmail` with a selected message.
 
 ## How It Works
 

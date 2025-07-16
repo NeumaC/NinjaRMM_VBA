@@ -374,7 +374,7 @@ Public Function GetTicketSubjectByApi(ticketId As Long) As String
 
     If resp.StatusCode = 200 Then
         Dim jsonText As String
-        jsonText = WebHelpers.BytesToUtf8String(resp.Body)
+        jsonText = WebHelpers.BytesToUtf8String(resp.body)
         
         Dim ticketDict As Dictionary
         Set ticketDict = WebHelpers.ParseJson(jsonText)
@@ -392,3 +392,234 @@ ErrHandler:
     Debug.Print "Fehler in GetTicketSubjectByApi:", Err.Description
     GetTicketSubjectByApi = ""
 End Function
+
+' ------------------------------------------------------------------------
+'   Helper: Find Ninja user UID by email
+' ------------------------------------------------------------------------
+Private Function GetUserUidByEmail(ByVal userEmail As String, Optional ByRef foundClientId As Long = 0) As String
+    On Error GoTo ErrHandler
+
+    Dim req As New WebRequest
+    req.Resource = "ticketing/app-user-contact"
+    req.Method = WebMethod.HttpGet
+    req.ResponseFormat = WebFormat.Json
+
+    req.AddQuerystringParam "searchCriteria", userEmail
+    req.AddQuerystringParam "pageSize", "50"
+
+    Dim resp As WebResponse
+    Set resp = NinjaClient.Execute(req)
+
+    If resp.StatusCode = 200 Then
+        Dim users As Collection
+        Set users = resp.Data
+        Dim i As Long
+        For i = 1 To users.Count
+            Dim userRec As Dictionary
+            Set userRec = users.item(i)
+            If LCase$(userRec("email")) = LCase$(userEmail) Then
+                If userRec.Exists("clientId") Then
+                    foundClientId = CLng(userRec("clientId"))
+                Else
+                    foundClientId = 0
+                End If
+                GetUserUidByEmail = CStr(userRec("uid"))
+                Exit Function
+            End If
+        Next i
+    End If
+    
+    foundClientId = 0
+    GetUserUidByEmail = ""
+    Exit Function
+
+ErrHandler:
+    Debug.Print "Fehler in GetUserUidByEmail:", Err.Description
+    foundClientId = 0
+    GetUserUidByEmail = ""
+End Function
+
+' ------------------------------------------------------------------------
+'   Helper: get SMTP address of sender
+' ------------------------------------------------------------------------
+Private Function GetSenderSmtpAddress(mail As Outlook.mailItem) As String
+    Dim sender As Outlook.AddressEntry
+    Dim exchUser As Outlook.ExchangeUser
+
+    On Error GoTo ErrHandler
+
+    Set sender = mail.sender
+    If Not sender Is Nothing Then
+        If sender.AddressEntryUserType = olExchangeUserAddressEntry Or _
+           sender.AddressEntryUserType = olExchangeRemoteUserAddressEntry Then
+            Set exchUser = sender.GetExchangeUser
+            If Not exchUser Is Nothing Then
+                GetSenderSmtpAddress = exchUser.PrimarySmtpAddress
+                Exit Function
+            End If
+        End If
+        ' Für Nicht-Exchange-Adressen (z.B. externe Mails)
+        GetSenderSmtpAddress = sender.Address
+    End If
+    Exit Function
+
+ErrHandler:
+    GetSenderSmtpAddress = mail.SenderName
+End Function
+
+' ------------------------------------------------------------------------
+'   Helper: convert attachment to Base64 string
+' ------------------------------------------------------------------------
+Private Function AttachmentToBase64(att As Outlook.Attachment) As String
+    On Error GoTo ErrHandler
+
+    Dim tmpPath As String
+    tmpPath = Environ$("TEMP") & "\" & att.fileName
+    att.SaveAsFile tmpPath
+
+    Dim stream As Object
+    Set stream = CreateObject("ADODB.Stream")
+    stream.Type = 1 'adTypeBinary
+    stream.Open
+    stream.LoadFromFile tmpPath
+    Dim bytes() As Byte
+    bytes = stream.Read
+    stream.Close
+    Kill tmpPath
+
+    Dim xml As Object
+    Dim node As Object
+    Set xml = CreateObject("MSXML2.DOMDocument")
+    Set node = xml.createElement("b64")
+    node.DataType = "bin.base64"
+    node.nodeTypedValue = bytes
+    AttachmentToBase64 = node.Text
+
+    Exit Function
+
+ErrHandler:
+    Debug.Print "Fehler in AttachmentToBase64:", Err.Description
+    AttachmentToBase64 = ""
+End Function
+
+' ------------------------------------------------------------------------
+'   Helper: upload attachments via comment endpoint
+' ------------------------------------------------------------------------
+Private Sub UploadEmailAttachmentsToTicket(ByVal ticketId As Long, mailItem As Outlook.mailItem)
+    On Error GoTo ErrHandler
+
+    If mailItem.Attachments.Count = 0 Then Exit Sub
+
+    Dim files() As Variant
+    ReDim files(0 To mailItem.Attachments.Count - 1)
+    Dim i As Long
+    For i = 1 To mailItem.Attachments.Count
+        files(i - 1) = AttachmentToBase64(mailItem.Attachments(i))
+    Next i
+
+    Dim comment As New Dictionary
+    comment.Add "public", True
+    comment.Add "body", ""
+    comment.Add "files", files
+
+    Dim req As New WebRequest
+    req.Resource = "ticketing/ticket/" & CStr(ticketId) & "/comment"
+    req.Method = WebMethod.HttpPost
+    req.RequestFormat = WebFormat.Json
+    req.ResponseFormat = WebFormat.Json
+    Set req.body = comment
+
+    Dim resp As WebResponse
+    Set resp = NinjaClient.Execute(req)
+    ' ignore response
+
+    Exit Sub
+
+ErrHandler:
+    Debug.Print "Fehler in UploadEmailAttachmentsToTicket:", Err.Description
+End Sub
+
+' ------------------------------------------------------------------------
+'   Create a new ticket from an Outlook mail item
+' ------------------------------------------------------------------------
+Public Function CreateTicketFromEmail(mailItem As Outlook.mailItem, _
+                                      Optional ByVal ticketFormId As Long = 1) As Long
+    On Error GoTo ErrHandler
+
+    Dim senderAddress As String
+    Dim requester As String
+    Dim clientId As Long
+    senderAddress = mailItem.SenderEmailAddress
+    If InStr(1, senderAddress, "@") = 0 Then
+        senderAddress = GetSenderSmtpAddress(mailItem)
+    End If
+
+    requester = GetUserUidByEmail(senderAddress, clientId)
+    If requester = "" Then Err.Raise vbObjectError + 513, , "Requester not found"
+
+    Dim body As New Dictionary
+    body.Add "clientId", clientId
+    body.Add "ticketFormId", ticketFormId
+    body.Add "subject", mailItem.Subject
+
+    Dim desc As New Dictionary
+    desc.Add "public", True
+    desc.Add "body", mailItem.body
+    desc.Add "htmlBody", mailItem.HTMLBody
+    body.Add "description", desc
+    body.Add "requesterUid", requester
+
+    Dim req As New WebRequest
+    req.Resource = "ticketing/ticket"
+    req.Method = WebMethod.HttpPost
+    req.RequestFormat = WebFormat.Json
+    req.ResponseFormat = WebFormat.Json
+    Set req.body = body
+
+    Dim resp As WebResponse
+    Set resp = NinjaClient.Execute(req)
+
+    If resp.StatusCode >= 200 And resp.StatusCode < 300 Then
+        Dim ticketInfo As Dictionary
+        Set ticketInfo = resp.Data
+        CreateTicketFromEmail = CLng(ticketInfo("id"))
+        UploadEmailAttachmentsToTicket CreateTicketFromEmail, mailItem
+    Else
+        CreateTicketFromEmail = -1
+    End If
+
+    Exit Function
+
+ErrHandler:
+    Debug.Print "Fehler in CreateTicketFromEmail:", Err.Description
+    CreateTicketFromEmail = -1
+End Function
+
+' ------------------------------------------------------------------------
+'   Create new tickets for all selected Outlook mail items
+' ------------------------------------------------------------------------
+Public Function CreateTicketsFromSelection(ByVal ticketFormId As Long) As Collection
+    On Error GoTo ErrHandler
+
+    Dim result As New Collection
+    Dim sel As Outlook.Selection
+    Set sel = Application.ActiveExplorer.Selection
+
+    Dim itm As Object
+    For Each itm In sel
+        If itm.Class = olMail Then
+            Dim ticketId As Long
+            'Default ticketFormId is 1
+            ticketId = CreateTicketFromEmail(mailItem:=itm, ticketFormId:=1)
+            result.Add ticketId
+        End If
+    Next itm
+
+    Set CreateTicketsFromSelection = result
+    Exit Function
+
+ErrHandler:
+    Debug.Print "Fehler in CreateTicketsFromSelection:", Err.Description
+    Set CreateTicketsFromSelection = Nothing
+End Function
+

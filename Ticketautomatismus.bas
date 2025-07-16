@@ -3,7 +3,7 @@ Option Explicit
 
 ' ************************************************************************
 '   ACHTUNG:
-'   Um dieses Makro nutzen zu k?nnen, muss in den VBA-Extras/Verweise
+'   Um dieses Makro nutzen zu können, muss in den VBA-Extras/Verweise
 '   der Verweis auf "Microsoft VBScript Regular Expressions 5.5" aktiviert sein.
 ' ************************************************************************
 
@@ -275,7 +275,7 @@ Private Sub ArchiveTasksFolder(ByVal tasksFolder As Outlook.Folder)
                     Set mailItem = ticketFolder.items(j)
 
                     ' Prüfen, ob im Body "Status: ... ? Geschlossen" gefunden wird
-                    If IsStatusClosed(mailItem.Body) Then
+                    If IsStatusClosed(mailItem.body) Then
                         foundStatusChange = True
 
                         ' Wir holen uns das Empfangsdatum der "geschlossenen" E-Mail
@@ -378,7 +378,7 @@ Private Sub MoveFolderToArchive(ByVal ticketFolder As Outlook.Folder, ByVal task
     Dim strMonth As String
 
     strYear = CStr(Year(closedDate))
-    strMonth = Format(closedDate, "mm") & "-" & Format(closedDate, "mmmm")
+    strMonth = Format(closedDate, "mm") & " - " & Format(closedDate, "mmmm")
 
     Set yearFolder = GetOrCreateFolder(archiveFolder, strYear)
     Set monthFolder = GetOrCreateFolder(yearFolder, strMonth)
@@ -420,6 +420,9 @@ Public Sub RunEmailRule()
     ' Hole alle Elemente im Posteingang
     Set items = inbox.items
     
+    ' Enable logging by uncommenting the next line
+    ' WebHelpers.EnableLogging = True
+    
     ' Durchlaufe die E-Mails im Posteingang rückwärts
     For i = items.Count To 1 Step -1
         Set item = items(i)
@@ -453,6 +456,9 @@ Public Sub RunArchiveRule()
         Exit Sub
     End If
 
+    ' Enable logging by uncommenting the next line
+    ' WebHelpers.EnableLogging = True
+    
     ' Archivierung ausführen
     If USE_API Then
         ArchiveTasksFolderAPI tasksFolder

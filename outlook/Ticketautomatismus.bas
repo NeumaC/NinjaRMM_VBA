@@ -1,4 +1,8 @@
 Attribute VB_Name = "Ticketautomatismus"
+' Ticketautomatismus v1.1.0
+' @author NeumaC
+' https://github.com/NeumaC/NinjaRMM_VBA
+
 Option Explicit
 
 ' ************************************************************************
@@ -204,12 +208,13 @@ Private Sub ArchiveTasksFolderAPI(ByVal tasksFolder As Outlook.Folder)
     ' Gehen Sie durch alle (Ticket-)Unterordner in tasksFolder
     For i = tasksFolder.Folders.Count To 1 Step -1
         Set ticketFolder = tasksFolder.Folders(i)
-        
+
         ' Optional: Ordner ignorieren, falls es der Archivordner selbst ist
         If LCase(ticketFolder.name) = LCase(FOLDER_ARCHIV) Then
             GoTo ContinueNext
         End If
-        
+
+        'ProgressStep "Prüfe Ordner " & ticketFolder.name
         ' Holen wir uns die Ticketnummer aus dem Ordnernamen,
         ' z.B. Ordner heißt: "#3621 (Betreff/Resttext)"
         Dim ticketId As Long
@@ -264,6 +269,7 @@ Private Sub ArchiveTasksFolder(ByVal tasksFolder As Outlook.Folder)
 
         ' "Archiv"-Ordner selbst überspringen
         If ticketFolder.name <> archivRoot.name Then
+            'ProgressStep "Prüfe Ordner " & ticketFolder.name
             Dim j As Long
             Dim mailItem As Outlook.mailItem
             Dim foundStatusChange As Boolean
@@ -403,6 +409,7 @@ Public Sub RunEmailRule()
     Dim ns As Outlook.NameSpace
     Dim i As Long
     Dim item As Object
+    Dim processed As Long
     
     ' Posteingang holen
     Set ns = Application.GetNamespace("MAPI")
@@ -419,20 +426,29 @@ Public Sub RunEmailRule()
 
     ' Hole alle Elemente im Posteingang
     Set items = inbox.items
-    
+
+    ' ProgressForm zeigen
+    'ProgressStart items.Count
+
     ' Enable logging by uncommenting the next line
     ' WebHelpers.EnableLogging = True
-    
+
     ' Durchlaufe die E-Mails im Posteingang rückwärts
+    processed = 0
     For i = items.Count To 1 Step -1
         Set item = items(i)
+        processed = processed + 1
+        'ProgressStep "Verarbeite E-Mail " & processed & " von " & items.Count
         If TypeOf item Is Outlook.mailItem Then
             Set mailItem = item
             ' E-Mail mit ProcessEmail verarbeiten
             ProcessEmail mailItem, tasksFolder
         End If
     Next i
+
+    'ProgressEnd
 End Sub
+
 
 Public Sub RunArchiveRule()
     ' Diese Prozedur wird aufgerufen, um geschlossene Tickets
@@ -441,6 +457,7 @@ Public Sub RunArchiveRule()
     Dim inbox As Outlook.Folder
     Dim tasksFolder As Outlook.Folder
     Dim ns As Outlook.NameSpace
+    Dim totalTickets As Long
 
     ' Namespace und Posteingang
     Set ns = Application.GetNamespace("MAPI")
@@ -456,6 +473,17 @@ Public Sub RunArchiveRule()
         Exit Sub
     End If
 
+    ' Anzahl der zu verarbeitenden Ticketordner ermitteln
+    totalTickets = tasksFolder.Folders.Count
+    On Error Resume Next
+    If Not tasksFolder.Folders(FOLDER_ARCHIV) Is Nothing Then
+        totalTickets = totalTickets - 1
+    End If
+    On Error GoTo 0
+
+    ' ProgressForm zeigen
+    'ProgressStart totalTickets
+
     ' Enable logging by uncommenting the next line
     ' WebHelpers.EnableLogging = True
     
@@ -466,7 +494,6 @@ Public Sub RunArchiveRule()
         ArchiveTasksFolder tasksFolder
     End If
 
+    'ProgressEnd
     MsgBox "Archivierung abgeschlossen.", vbInformation
 End Sub
-
-

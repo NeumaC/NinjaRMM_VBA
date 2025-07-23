@@ -1,5 +1,5 @@
 Attribute VB_Name = "NinjaAPICall"
-' NinjaAPICall v1.0.0
+' NinjaAPICall v1.1.0
 ' @author NeumaC
 ' https://github.com/NeumaC/NinjaRMM_VBA
 '
@@ -275,14 +275,18 @@ Public Function IsTicketClosedByApi(ByVal ticketId As Long) As Boolean
         Dim sid As Long
         sid = CLng(statusDict("statusId"))
         
-        If sid = 6000 Then
+        If sid = 6000 Or CBool(resp.Data("deleted")) Then
             IsTicketClosedByApi = True
         Else
             IsTicketClosedByApi = False
         End If
+    ElseIf resp.StatusCode = 404 And CStr(resp.Data("resultCode")) = "TICKET_NOT_FOUND" Then
+        ' Wurde wohl endgültig gelöscht
+        Debug.Print "ticketId " & ticketId & " wurde nicht gefunden, Status: " & resp.StatusCode & ", resultCode: """ & CStr(resp.Data("resultCode")) & """ => wurde wohl endgültig gelöscht"
+        IsTicketClosedByApi = True
     Else
         ' Wenn z.B. Fehler 404 oder anderes - hier je nach Bedarf behandeln
-        Debug.Print "API-Aufruf war nicht erfolgreich, Status: " & resp.StatusCode
+        Debug.Print "API-Aufruf für ticketId " & ticketId & " war nicht erfolgreich, Status: " & resp.StatusCode & ", errorMessage: """ & CStr(resp.Data("errorMessage")) & """"
         IsTicketClosedByApi = False
     End If
     
@@ -313,7 +317,13 @@ Public Function GetTicketClosedDateByApi(ticketId As Long) As Date
         ' Wir erwarten ein Array von Log-Einträgen
         Dim arrLogs As Collection
         Set arrLogs = resp.Data ' i.d.R. ein Collection-Objekt
-
+        Dim dblTime As Double
+        ' Gemäß Beispiel: 1744206453.867411000 => sek seit 1.1.1970
+        ' -> In VBA-Datum umrechnen:
+        '   1 Tag = 86400 sek
+        Dim epoch As Date
+        epoch = #1/1/1970#
+        
         Dim i As Long
         For i = 1 To arrLogs.Count
             Dim logItem As Dictionary
@@ -324,26 +334,29 @@ Public Function GetTicketClosedDateByApi(ticketId As Long) As Date
                 Dim autom As Dictionary
                 Set autom = logItem("automation")
 
-                ' Falls automation.id = 1000 => das ist unser finaler close-Eintrag
+                ' Falls automation.id = 1000 => Regelbasierter Statusübergang "Close Tickets Trigger"
+                ' Falls automation.id = 1023 => Regelbasierter Statusübergang "Close Tickets Trigger Aufgelöst (keine Benachrichtigungen)"
                 If autom.Exists("id") Then
-                    If CLng(autom("id")) = 1000 Then
+                    If CLng(autom("id")) = 1000 Or CLng(autom("id")) = 1023 Then
                         ' Dann Zeitstempel aus createTime übernehmen
-                        ' Wert direkt mit Val() umwandeln  unabhängig vom Dezimaltrennzeichen
-                        Dim dblTime As Double
+                        ' Wert direkt mit Val() umwandeln – unabhängig vom Dezimaltrennzeichen
+
                         dblTime = Val(CStr(logItem("createTime")))
-
-                        ' Gemäß Beispiel: 1744206453.867411000 => sek seit 1.1.1970
-                        ' -> In VBA-Datum umrechnen:
-                        '   1 Tag = 86400 sek
-                        Dim epoch As Date
-                        epoch = #1/1/1970#
-
                         GetTicketClosedDateByApi = epoch + (dblTime / 86400)
                         Exit Function
                     End If
                 End If
+                
+            ' Auch wenn ein Ticket vorläufig gelöscht wurde, soll es verschoben werden
+            ElseIf CStr(logItem("type")) = "DELETE" Then
+                dblTime = Val(CStr(logItem("createTime")))
+                GetTicketClosedDateByApi = epoch + (dblTime / 86400)
             End If
         Next i
+    ElseIf resp.StatusCode = 404 And CStr(resp.Data("resultCode")) = "TICKET_NOT_FOUND" Then
+        ' Wurde wohl gelöscht
+        Debug.Print "CloseDate für ticketId " & ticketId & " wurde nicht gefunden, Status: " & resp.StatusCode & ", resultCode: """ & CStr(resp.Data("resultCode")) & """ => es wird mit Zeitpunkt ""jetzt"" archiviert"
+        GetTicketClosedDateByApi = Now()
     End If
 
     ' Falls nicht gefunden oder kein Erfolg:

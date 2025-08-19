@@ -726,7 +726,7 @@ End Sub
 ' 1. Prepare the token refresh request by setting the required headers, request body, and other parameters.
 ' 2. Execute the token refresh request using the provided WebClient instance.
 ' 3. If the request is successful (200 status code), update the AccessToken, AccessTokenExpiration, RefreshToken, and RefreshTokenExpiration properties.
-' 4. If the request is unauthorized (401 status code), attempt to re-login and update the AuthorizationCode, then redirect to the GetNewToken procedure.
+' 4. If the request is unauthorized (401 status code) or invalid (400 status code), attempt to re-login and update the AuthorizationCode, then redirect to the GetNewToken procedure.
 ' 5. Handle any other errors that occur during the token refresh process.
 '
 ' Note: This method uses the 'ClientId', 'ClientSecret', and 'RefreshToken' properties.
@@ -769,33 +769,44 @@ Private Sub GetRefreshedToken(client As WebClient)
         WebHelpers.LogDebug "New Access Token: " & Me.AccessToken & vbNewLine & vbTab & _
             "New Refresh Token: " & Me.RefreshToken, "NinjaAuthenticator.GetNewToken"
     
-    ' Response 401 - refresh token might be expired
-    ' Handle unauthorized (401) response by attempting to re-login and update the AuthorizationCode
-    ElseIf auth_Response.StatusCode = WebStatusCode.Unauthorized Then
+    ' Response 401/400 - refresh token might be expired or invalid
+    ' Handle unauthorized (401) or bad request (400) by attempting to re-login and update the AuthorizationCode
+    ElseIf auth_Response.StatusCode = WebStatusCode.Unauthorized _
+        Or auth_Response.StatusCode = WebStatusCode.BadRequest Then
+
+        Dim auth_Details As String
+        If auth_Response.Data.Exists("details") Then
+            auth_Details = auth_Response.Data("details")
+        ElseIf auth_Response.Data.Exists("error_description") Then
+            auth_Details = auth_Response.Data("error_description")
+        Else
+            auth_Details = auth_Response.Content
+        End If
+
         ' Log the response details
-        WebHelpers.printMsg "NinjaAuthenticator.GetRefreshedToken", auth_Response.StatusDescription & " - " & auth_Response.Data("details")
+        WebHelpers.printMsg "NinjaAuthenticator.GetRefreshedToken", auth_Response.StatusDescription & " - " & auth_Details
         WebHelpers.LogDebug "NinjaAuthenticator.GetRefreshedToken", auth_Response.StatusCode & ": " & auth_Response.Content
-        
+
         ' Notify and ask permission to attempt re-login
         Dim msgBoxResponse As VbMsgBoxResult
-        msgBoxResponse = MsgBox("Login session expired:" & vbNewLine & auth_Response.Data("details") & _
+        msgBoxResponse = MsgBox("Login session expired:" & vbNewLine & auth_Details & _
             vbNewLine & vbNewLine & "Attempt to re-login?", vbQuestion + vbYesNo, "NinjaRMM Ticket Connector - Microsoft Outlook")
-        
+
         Select Case msgBoxResponse
             Case vbYes
                 WebHelpers.printMsg "NinjaAuthenticator.GetRefreshedToken", "Redirecting to Login..."
-        
+
                 ' Clear expired auth code and token
                 Me.Logout
-                
+
                 ' Re-login and update the auth code
                 Me.Login
-                
+
                 ' Clean up and redirect to the GetNewToken procedure
                 Set auth_TokenClient = Nothing
                 Set auth_Request = Nothing
                 Set auth_Response = Nothing
-                
+
                 GetNewToken client
             Case vbNo
                 ' Notify stopping refresh token process
@@ -1133,5 +1144,6 @@ Private Sub Class_Initialize()
     'Me.Scopes = Array("")
     LoadTokens
 End Sub
+
 
 

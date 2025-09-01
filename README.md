@@ -83,6 +83,7 @@ It also integrates with the NinjaRMM API to determine if a ticket is closed base
 ## Usage
 
 - **RunEmailRule**: Manually invoked or attached to an Outlook rule to process new incoming emails automatically.
+- **RunEmailRuleScript**: Helper macro for the "Run a script" Outlook rule action. It processes only the message supplied by the rule if it is still in the Inbox.
 - **RunArchiveRule**: Manually invoked or scheduled (e.g., daily) to move closed tickets into the archive subfolders.
 
 ## Notes
@@ -91,3 +92,16 @@ It also integrates with the NinjaRMM API to determine if a ticket is closed base
 - For archiving, the date used is retrieved from the log entry with `automation.id = 1000` (the “Close Tickets Trigger”).  
 - The subfolder naming convention for the archive is `<Year>/<Month>` (e.g. `"2023/04-April"`).
 - For large mailboxes or advanced workflows, consider a more robust add-in or third-party solution for professional archiving or help-desk integration.
+
+## Automatic Execution on Email Arrival
+
+To trigger `RunEmailRule` automatically, you can use an Outlook rule.
+This rule should be placed at the end of the rule sequence so that all other rules are applied first.
+
+1. Create a new rule for incoming messages (e.g., "When a message is received").
+2. Optionally select further conditions, or leave them empty to capture all messages.
+3. As the action, choose **Run a script** and select `RunEmailRuleScript`.
+4. Move this rule to the very bottom of the list.
+
+The function `RunEmailRuleScript` checks whether the passed message is still in the Inbox.
+Only then will `ProcessEmail` be called and the email moved to the appropriate ticket folder.

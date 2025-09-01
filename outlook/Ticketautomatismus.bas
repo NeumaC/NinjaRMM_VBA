@@ -1,5 +1,5 @@
 Attribute VB_Name = "Ticketautomatismus"
-' Ticketautomatismus v1.1.1
+' Ticketautomatismus v1.1.2
 ' @author NeumaC
 ' https://github.com/NeumaC/NinjaRMM_VBA
 
@@ -468,6 +468,9 @@ Public Sub RunEmailRuleScript(mail As Outlook.mailItem)
     Dim tasksFolder As Outlook.Folder
 
     Sleep 1000 ' 1 Sekunde warten
+    
+    ' Sicherstellen, dass das übergebene Element noch existiert
+    If mail Is Nothing Then Exit Sub
 
     ' Prüfen, ob die E-Mail noch im Posteingang liegt
     If mail.Parent Is inbox Then
@@ -516,5 +519,6 @@ Public Sub RunArchiveRule()
     'ProgressEnd
     'MsgBox "Archivierung abgeschlossen.", vbInformation
 End Sub
+
 
 

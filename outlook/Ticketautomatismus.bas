@@ -1,5 +1,5 @@
 Attribute VB_Name = "Ticketautomatismus"
-' Ticketautomatismus v1.1.0
+' Ticketautomatismus v1.1.1
 ' @author NeumaC
 ' https://github.com/NeumaC/NinjaRMM_VBA
 
@@ -17,11 +17,11 @@ Option Explicit
 Public Const FOLDER_ARCHIV As String = "Archiv"
 Public Const FOLDER_TICKETS As String = "Tickets"
 
-Public Const ALLOWED_SENDER As String = "it-support"
+Public Const ALLOWED_SENDER As String = "it-support | Gföllner"
 
-Public Const REGEX_SUBJECT_PATTERN As String = "^\[.*\]\s*\(#(\d+)\)(.*)"
-Public Const REGEX_TICKETNUMBER_ONLY As String = "^\[.*\]\s*\(#(\d+)\)"
-Public Const REGEX_TICKET_REPLACE As String = "TICKET \(([A-Z]+)\)( / )"
+Public Const REGEX_SUBJECT_PATTERN As String = "^\[gfoellner-at\]\s*\(#(\d+)\)(.*)"
+Public Const REGEX_TICKETNUMBER_ONLY As String = "^\[gfoellner-at\]\s*\(#(\d+)\)"
+Public Const REGEX_TICKET_REPLACE As String = "TICKET \(Gföllner - ([A-Z]+)\)( / )"
 Public Const REGEX_STATUS_CLOSED As String = "Status:\s?.*?\s?Geschlossen"
 
 Public Const USE_API As Boolean = True
@@ -30,6 +30,8 @@ Public Const USE_API As Boolean = True
 ' ------------------------------------------------------------------------
 '  Gemeinsame Hilfsfunktionen
 ' ------------------------------------------------------------------------
+
+Private Declare PtrSafe Sub Sleep Lib "kernel32" (ByVal dwMilliseconds As Long)
 
 Private Function GetOrCreateFolder(ByVal parentFolder As Outlook.Folder, _
                                    ByVal folderName As String) As Outlook.Folder
@@ -72,6 +74,26 @@ Private Function FindTicketFolderInArchiveRecursively(ByVal parentFolder As Outl
     Next child
 End Function
 
+' Gemeinsame Initialisierung für RunEmailRule und RunEmailRuleScript
+Private Function InitEmailRuleFolders(ByRef inbox As Outlook.Folder, _
+                                      ByRef tasksFolder As Outlook.Folder) As Boolean
+    Dim ns As Outlook.NameSpace
+
+    Set ns = Application.GetNamespace("MAPI")
+    Set inbox = ns.GetDefaultFolder(olFolderInbox)
+
+    On Error Resume Next
+    Set tasksFolder = inbox.Folders(FOLDER_TICKETS)
+    On Error GoTo 0
+
+    If tasksFolder Is Nothing Then
+        MsgBox "Der '" & FOLDER_TICKETS & "'-Ordner existiert nicht unter dem Posteingang.", _
+                vbExclamation
+        InitEmailRuleFolders = False
+    Else
+        InitEmailRuleFolders = True
+    End If
+End Function
 
 ' Holt per API den aktuellen Ticketbetreff und benennt den Ordner falls nötig um
 Private Sub UpdateTicketFolderNameFromApi(ByVal ticketFolder As Outlook.Folder, ByVal ticketId As Long)
@@ -265,7 +287,7 @@ Private Sub ArchiveTasksFolder(ByVal tasksFolder As Outlook.Folder)
 
     ' 2) Durch alle Unterordner in tasksFolder laufen (Ticketordner) - rückwärts
     For i = tasksFolder.Folders.Count To 1 Step -1
-        Set ticketFolder = tasksFolder.Folders.item(i)
+        Set ticketFolder = tasksFolder.Folders.Item(i)
 
         ' "Archiv"-Ordner selbst überspringen
         If ticketFolder.name <> archivRoot.name Then
@@ -406,27 +428,16 @@ Public Sub RunEmailRule()
     Dim tasksFolder As Outlook.Folder
     Dim items As Outlook.items
     Dim mailItem As Outlook.mailItem
-    Dim ns As Outlook.NameSpace
     Dim i As Long
-    Dim item As Object
+    Dim Item As Object
     Dim processed As Long
     
-    ' Posteingang holen
-    Set ns = Application.GetNamespace("MAPI")
-    Set inbox = ns.GetDefaultFolder(olFolderInbox)
-
-    ' "Tickets"-Ordner unterhalb des Posteingangs
-    On Error Resume Next
-    Set tasksFolder = inbox.Folders(FOLDER_TICKETS)
-    On Error GoTo 0
-    If tasksFolder Is Nothing Then
-        MsgBox "Der '" & FOLDER_TICKETS & "'-Ordner existiert nicht unter dem Posteingang.", vbExclamation
-        Exit Sub
-    End If
+    ' Posteingang und Ticket-Ordner initialisieren
+    If Not InitEmailRuleFolders(inbox, tasksFolder) Then Exit Sub
 
     ' Hole alle Elemente im Posteingang
     Set items = inbox.items
-
+    
     ' ProgressForm zeigen
     'ProgressStart items.Count
 
@@ -436,11 +447,11 @@ Public Sub RunEmailRule()
     ' Durchlaufe die E-Mails im Posteingang rückwärts
     processed = 0
     For i = items.Count To 1 Step -1
-        Set item = items(i)
+        Set Item = items(i)
         processed = processed + 1
         'ProgressStep "Verarbeite E-Mail " & processed & " von " & items.Count
-        If TypeOf item Is Outlook.mailItem Then
-            Set mailItem = item
+        If TypeOf Item Is Outlook.mailItem Then
+            Set mailItem = Item
             ' E-Mail mit ProcessEmail verarbeiten
             ProcessEmail mailItem, tasksFolder
         End If
@@ -449,6 +460,26 @@ Public Sub RunEmailRule()
     'ProgressEnd
 End Sub
 
+' Diese Sub wird von einer Outlook-Regel mit der Aktion "Skript ausführen"
+' aufgerufen. Sie verarbeitet nur die übergebene E-Mail, sofern sie sich
+' nach allen Regeln noch im Posteingang befindet.
+Public Sub RunEmailRuleScript(mail As Outlook.mailItem)
+    Dim inbox As Outlook.Folder
+    Dim tasksFolder As Outlook.Folder
+
+    Sleep 1000 ' 1 Sekunde warten
+
+    ' Prüfen, ob die E-Mail noch im Posteingang liegt
+    If mail.Parent Is inbox Then
+        
+        ' Posteingang und Ticket-Ordner initialisieren
+        If Not InitEmailRuleFolders(inbox, tasksFolder) Then Exit Sub
+        
+        ' Nur diese eine E-Mail verarbeiten
+        ProcessEmail mail, tasksFolder
+    
+    End If
+End Sub
 
 Public Sub RunArchiveRule()
     ' Diese Prozedur wird aufgerufen, um geschlossene Tickets
@@ -456,22 +487,10 @@ Public Sub RunArchiveRule()
 
     Dim inbox As Outlook.Folder
     Dim tasksFolder As Outlook.Folder
-    Dim ns As Outlook.NameSpace
     Dim totalTickets As Long
 
-    ' Namespace und Posteingang
-    Set ns = Application.GetNamespace("MAPI")
-    Set inbox = ns.GetDefaultFolder(olFolderInbox)
-
-    ' "Tickets"-Ordner unterhalb des Posteingangs
-    On Error Resume Next
-    Set tasksFolder = inbox.Folders(FOLDER_TICKETS)
-    On Error GoTo 0
-
-    If tasksFolder Is Nothing Then
-        MsgBox "Der '" & FOLDER_TICKETS & "'-Ordner existiert nicht unter dem Posteingang.", vbExclamation
-        Exit Sub
-    End If
+    ' Posteingang und Ticket-Ordner initialisieren
+    If Not InitEmailRuleFolders(inbox, tasksFolder) Then Exit Sub
 
     ' Anzahl der zu verarbeitenden Ticketordner ermitteln
     totalTickets = tasksFolder.Folders.Count
@@ -495,5 +514,7 @@ Public Sub RunArchiveRule()
     End If
 
     'ProgressEnd
-    MsgBox "Archivierung abgeschlossen.", vbInformation
+    'MsgBox "Archivierung abgeschlossen.", vbInformation
 End Sub
+
+

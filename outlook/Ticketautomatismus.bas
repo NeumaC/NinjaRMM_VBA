@@ -153,7 +153,7 @@ Public Sub ProcessEmail(mailItem As Outlook.mailItem, tasksFolder As Outlook.Fol
         Dim subjectText As String
         subjectText = mailItem.Subject
 
-        If regex.test(subjectText) Then
+        If regex.Test(subjectText) Then
             ' Hole das Match-Objekt
             Set matchObj = regex.Execute(subjectText)(0)
 
@@ -164,7 +164,7 @@ Public Sub ProcessEmail(mailItem As Outlook.mailItem, tasksFolder As Outlook.Fol
 
             ' Ersetze optional "TICKET (Gföllner - XX) /" durch "XX"
             ' wenn es vorhanden ist.
-            If ticketRegex.test(remainingText) Then
+            If ticketRegex.Test(remainingText) Then
                 Set ticketMatch = ticketRegex.Execute(remainingText)
                 If ticketMatch.Count > 0 Then
                     remainingText = ticketMatch(0).SubMatches(0) & ticketMatch(0).SubMatches(1) & _
@@ -357,7 +357,7 @@ Private Function ExtractTicketNumber(ByVal subjectText As String) As String
     subjectRegex.IgnoreCase = True
     subjectRegex.Global = False
 
-    If subjectRegex.test(subjectText) Then
+    If subjectRegex.Test(subjectText) Then
         ExtractTicketNumber = "#" & subjectRegex.Execute(subjectText)(0).SubMatches(0)
     Else
         ExtractTicketNumber = ""
@@ -373,7 +373,7 @@ Private Function IsStatusClosed(ByVal bodyText As String) As Boolean
     re.IgnoreCase = True
     re.Global = False
 
-    IsStatusClosed = re.test(bodyText)
+    IsStatusClosed = re.Test(bodyText)
 End Function
 
 ' Hilfsfunktion, um aus Ordnernamen "#3621 (blabla)" die 3621 zu ziehen
@@ -470,8 +470,16 @@ Public Sub RunEmailRuleScript(mail As Outlook.mailItem)
     Sleep 1000 ' 1 Sekunde warten
     
     ' Sicherstellen, dass das übergebene Element noch existiert
-    If mail Is Nothing Then Exit Sub
+    On Error GoTo ExitSub
+    If mail Is Nothing Then GoTo ExitSub
 
+    ' Prüfen, ob Zugriff überhaupt möglich ist (Parent/EntryID schlagen als erstes fehl)
+    Err.Clear
+    Dim tmp As Object
+    Set tmp = mail.Parent
+    If Err.Number <> 0 Then GoTo ExitSub   ' Mail wurde bereits verschoben -> sauber abbrechen
+
+    ' Jetzt ist das Objekt noch gültig:
     ' Prüfen, ob die E-Mail noch im Posteingang liegt
     If mail.Parent Is inbox Then
         
@@ -482,6 +490,8 @@ Public Sub RunEmailRuleScript(mail As Outlook.mailItem)
         ProcessEmail mail, tasksFolder
     
     End If
+    
+ExitSub:
 End Sub
 
 Public Sub RunArchiveRule()
@@ -519,6 +529,5 @@ Public Sub RunArchiveRule()
     'ProgressEnd
     'MsgBox "Archivierung abgeschlossen.", vbInformation
 End Sub
-
 
 
